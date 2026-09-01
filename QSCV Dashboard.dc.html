@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/industry-66f186c5-855f-4942-a2fc-ba3ddbeae0dd/styles.css">
+<script src="_ds/industry-66f186c5-855f-4942-a2fc-ba3ddbeae0dd/_ds_bundle.js"></script>
+<style>
+body{margin:0;background:var(--color-bg)}
+a{color:var(--color-accent);text-decoration:none}
+a:hover{color:var(--color-accent-700)}
+.qd-t{width:100%;border-collapse:collapse;font-size:13px}
+.qd-t th{text-align:left;font:600 9.5px/1.3 var(--font-body);letter-spacing:.12em;text-transform:uppercase;color:var(--color-accent-700);border-bottom:1px solid var(--color-text);padding:8px 10px;white-space:nowrap}
+.qd-t td{padding:9px 10px;border-bottom:1px solid var(--color-divider);vertical-align:middle}
+.qd-t tbody tr:hover{background:var(--color-accent-100)}
+</style>
+</helmet>
+
+<div style="min-height:100vh;font-family:var(--font-body);color:var(--color-text);padding:36px 40px 72px;max-width:1280px;margin:0 auto">
+
+<div style="display:flex;justify-content:space-between;align-items:flex-end;gap:24px;border-bottom:1px solid var(--color-text);padding-bottom:16px;margin-bottom:26px;flex-wrap:wrap">
+<div>
+<div style="font:600 10px/1 var(--font-body);letter-spacing:.14em;text-transform:uppercase;color:var(--color-accent-700)">QSCV Department · Portfolio overview</div>
+<h1 style="font-size:40px;line-height:1.02;margin:8px 0 0">Store standing</h1>
+</div>
+<div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end">
+<div style="display:flex;gap:6px">
+<button class="btn btn-secondary" style="font-size:12px;padding:6px 14px" onClick="{{ setAll }}">All</button>
+<button class="btn btn-secondary" style="font-size:12px;padding:6px 14px" onClick="{{ setNorth }}">North</button>
+<button class="btn btn-secondary" style="font-size:12px;padding:6px 14px" onClick="{{ setSouth }}">South</button>
+</div>
+<div style="font-size:11.5px;color:var(--color-neutral-600)">Showing <b style="font-weight:600">{{ areaLabel }}</b> · cycle ending {{ cycleLabel }} <a href="#" onClick="{{ prevCycle }}">◀ earlier</a> <a href="#" onClick="{{ nextCycle }}">later ▶</a></div>
+</div>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:28px">
+<div class="blueprint" style="padding:16px 18px">
+<i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+<div style="font:600 9.5px/1 var(--font-body);letter-spacing:.12em;text-transform:uppercase;color:var(--color-accent-700)">Portfolio average</div>
+<div style="font:600 38px/1 var(--font-heading);margin:8px 0 2px">{{ avgScore }}</div>
+<div style="font-size:11.5px;color:var(--color-neutral-700)">{{ avgBand }} · {{ avgDelta }} vs previous cycle</div>
+</div>
+<div class="blueprint" style="padding:16px 18px">
+<i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+<div style="font:600 9.5px/1 var(--font-body);letter-spacing:.12em;text-transform:uppercase;color:var(--color-accent-700)">Audited this cycle</div>
+<div style="font:600 38px/1 var(--font-heading);margin:8px 0 2px">{{ coverage }}</div>
+<div style="font-size:11.5px;color:var(--color-neutral-700)">{{ overdueLine }}</div>
+</div>
+<div class="blueprint" style="padding:16px 18px">
+<i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+<div style="font:600 9.5px/1 var(--font-body);letter-spacing:.12em;text-transform:uppercase;color:var(--color-accent-700)">On critical watch</div>
+<div style="font:600 38px/1 var(--font-heading);margin:8px 0 2px">{{ critCount }}</div>
+<div style="font-size:11.5px;color:var(--color-neutral-700)">Five or more High-risk items failed</div>
+</div>
+<div class="blueprint" style="padding:16px 18px">
+<i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+<div style="font:600 9.5px/1 var(--font-body);letter-spacing:.12em;text-transform:uppercase;color:var(--color-accent-700)">Weakest category</div>
+<div style="font:600 21px/1.1 var(--font-heading);margin:10px 0 4px">{{ weakestName }}</div>
+<div style="font-size:11.5px;color:var(--color-neutral-700)">{{ weakestLine }}</div>
+</div>
+</div>
+
+<sc-if value="{{ hasWatch }}">
+<div style="border:1px solid var(--color-text);background:var(--color-accent-900);color:var(--color-bg);padding:16px 18px;margin-bottom:28px">
+<div style="font:600 9.5px/1 var(--font-body);letter-spacing:.12em;text-transform:uppercase">Critical-fail watchlist</div>
+<div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:12px">
+<sc-for list="{{ watchRows }}" as="w" hint-placeholder-count="3">
+<div style="border:1px solid var(--color-bg);padding:10px 14px;min-width:200px">
+<div style="font:600 15px/1.2 var(--font-heading)">{{ w.branch }}</div>
+<div style="font-size:11.5px;opacity:.85;margin-top:3px">{{ w.line }}</div>
+</div>
+</sc-for>
+</div>
+</div>
+</sc-if>
+
+<h2 style="font-size:20px;margin:0 0 4px">Branch league table</h2>
+<div style="font-size:12px;color:var(--color-neutral-600);margin-bottom:12px">Ranked by the cycle's weighted grade. Δ compares each branch with its own previous audit.</div>
+<table class="qd-t">
+<thead><tr><th style="width:34px">#</th><th>Branch</th><th>Area</th><th>Type</th><th>Last audit</th><th style="text-align:right">Grade</th><th>Band</th><th style="text-align:right">Δ</th><th style="text-align:right">Crit</th></tr></thead>
+<tbody>
+<sc-for list="{{ leagueRows }}" as="r" hint-placeholder-count="14">
+<tr>
+<td style="color:var(--color-neutral-600)">{{ r.rank }}</td>
+<td style="font-weight:600">{{ r.branch }}</td>
+<td style="color:var(--color-neutral-700)">{{ r.area }}</td>
+<td style="color:var(--color-neutral-700)">{{ r.stype }}</td>
+<td style="{{ r.dateStyle }}">{{ r.date }}</td>
+<td style="text-align:right;font:600 16px/1 var(--font-heading)">{{ r.score }}</td>
+<td><span style="{{ r.bandStyle }}">{{ r.band }}</span></td>
+<td style="{{ r.deltaStyle }}">{{ r.delta }}</td>
+<td style="{{ r.critStyle }}">{{ r.crit }}</td>
+</tr>
+</sc-for>
+</tbody>
+</table>
+
+<h2 style="font-size:20px;margin:36px 0 4px">Category heatmap</h2>
+<div style="font-size:12px;color:var(--color-neutral-600);margin-bottom:12px">Each cell is the branch's score in that category this cycle. Deeper steel is weaker — read the columns to find a portfolio-wide problem.</div>
+<table class="qd-t">
+<thead><tr><th>Branch</th>
+<sc-for list="{{ catCols }}" as="c" hint-placeholder-count="9">
+<th style="text-align:center;width:74px"><div style="font-size:11px">{{ c.num }}</div><div style="font-weight:400;letter-spacing:0;text-transform:none;font-size:9.5px;color:var(--color-neutral-600)">{{ c.short }}</div></th>
+</sc-for>
+<th style="text-align:right">Grade</th></tr></thead>
+<tbody>
+<sc-for list="{{ heatRows }}" as="h" hint-placeholder-count="14">
+<tr><td style="font-weight:600;white-space:nowrap">{{ h.branch }}</td>
+<sc-for list="{{ h.cells }}" as="cell" hint-placeholder-count="9">
+<td style="{{ cell.style }}">{{ cell.label }}</td>
+</sc-for>
+<td style="text-align:right;font-weight:600">{{ h.score }}</td></tr>
+</sc-for>
+</tbody>
+<tfoot><tr><td style="font:600 9.5px/1.3 var(--font-body);letter-spacing:.12em;text-transform:uppercase;color:var(--color-accent-700);border-top:1px solid var(--color-text)">Portfolio</td>
+<sc-for list="{{ catFooter }}" as="f" hint-placeholder-count="9">
+<td style="{{ f.style }}">{{ f.label }}</td>
+</sc-for>
+<td style="border-top:1px solid var(--color-text)"></td></tr></tfoot>
+</table>
+
+<div style="display:flex;gap:18px;align-items:center;margin-top:14px;font-size:11px;color:var(--color-neutral-600)">
+<span>Weaker</span>
+<div style="display:flex">
+<span style="width:38px;height:14px;background:var(--color-accent-900)"></span>
+<span style="width:38px;height:14px;background:var(--color-accent-700)"></span>
+<span style="width:38px;height:14px;background:var(--color-accent-400)"></span>
+<span style="width:38px;height:14px;background:var(--color-accent-200)"></span>
+<span style="width:38px;height:14px;background:var(--color-accent-100)"></span>
+</div>
+<span>Stronger</span>
+</div>
+
+<div style="margin-top:40px;padding-top:16px;border-top:1px solid var(--color-divider);font-size:11.5px;line-height:1.6;color:var(--color-neutral-600)">
+{{ sourceLine }} · <a href="QSCV Audit App.dc.html">Open the audit app</a>
+</div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1280,&quot;height&quot;:900}}">
+const BAND = s => s>=91?"Excellent":s>=86?"Very Good":s>=80?"Good":"Unsatisfactory";
+
+class Component extends DCLogic {
+  state = {H:null, area:"All", cycle:null};
+  componentDidMount(){
+    import("./qscv-history.js").then(H=>{
+      let live = [];
+      try{
+        const raw = localStorage.getItem(H.ARCHIVE_KEY);
+        if(raw) live = JSON.parse(raw) || [];
+      }catch(e){}
+      this.setState({H, live, cycle:H.WEEKS.length-1});
+    });
+  }
+  heatStyle(v, foot){
+    const bg = v>=0.91?"var(--color-accent-100)":v>=0.86?"var(--color-accent-200)":v>=0.80?"var(--color-accent-400)":v>=0.70?"var(--color-accent-700)":"var(--color-accent-900)";
+    const fg = v>=0.80?"var(--color-text)":"var(--color-bg)";
+    return "text-align:center;background:"+bg+";color:"+fg+";font-variant-numeric:tabular-nums"+(foot?";border-top:1px solid var(--color-text);font-weight:600":"");
+  }
+  renderVals(){
+    const H = this.state.H;
+    if(!H) return {};
+    const {BRANCHES, CATS, WEEKS, RECORDS} = H;
+    const area = this.state.area, ci = this.state.cycle;
+    const live = (this.state.live||[]).filter(r=>r && r.branch && r.score!=null);
+    const all = RECORDS.concat(live);
+    const cycleDate = WEEKS[ci];
+    const extra = [];
+    live.forEach(r=>{
+      if(BRANCHES.some(b=>b.name===r.branch) || extra.some(b=>b.name===r.branch)) return;
+      extra.push({name:r.branch, area:r.area||"North", stype:r.stype||"Mall", weak:[]});
+    });
+    const branches = BRANCHES.concat(extra).filter(b=>area==="All" || b.area===area);
+
+    const rowFor = b => {
+      const mine = all.filter(r=>r.branch===b.name).sort((x,y)=>x.date<y.date?-1:1);
+      const upTo = mine.filter(r=>r.date<=cycleDate);
+      const cur = upTo.length ? upTo[upTo.length-1] : null;
+      const prev = upTo.length>1 ? upTo[upTo.length-2] : null;
+      const stale = cur ? (new Date(cycleDate)-new Date(cur.date))/864e5 : null;
+      return {b, cur, prev, stale};
+    };
+    const rows = branches.map(rowFor);
+    const scored = rows.filter(r=>r.cur);
+
+    const avg = scored.length ? scored.reduce((a,r)=>a+r.cur.score,0)/scored.length : 0;
+    const prevAvgSet = rows.filter(r=>r.prev);
+    const prevAvg = prevAvgSet.length ? prevAvgSet.reduce((a,r)=>a+r.prev.score,0)/prevAvgSet.length : null;
+    const dAvg = prevAvg===null ? null : avg-prevAvg;
+
+    const onTime = rows.filter(r=>r.cur && r.stale<=7).length;
+    const overdue = rows.filter(r=>!r.cur || r.stale>7);
+
+    const catAvg = {};
+    CATS.forEach(c=>{
+      const vals = scored.map(r=>r.cur.cats[c.num]).filter(v=>v!=null);
+      catAvg[c.num] = vals.length ? vals.reduce((a,v)=>a+v,0)/vals.length : null;
+    });
+    let weakest = null;
+    CATS.forEach(c=>{ if(catAvg[c.num]!=null && (!weakest || catAvg[c.num]<catAvg[weakest.num])) weakest = c; });
+
+    const league = scored.slice().sort((x,y)=>y.cur.score-x.cur.score).map((r,i)=>{
+      const d = r.prev ? r.cur.score-r.prev.score : null;
+      const band = BAND(r.cur.score);
+      return {
+        rank:i+1, branch:r.b.name, area:r.b.area, stype:r.b.stype,
+        date: r.cur.date + (r.stale>7 ? " · stale" : ""),
+        dateStyle: "white-space:nowrap;color:"+(r.stale>7?"var(--color-accent-700);font-weight:600":"var(--color-neutral-700)"),
+        score: r.cur.score.toFixed(1),
+        band,
+        bandStyle: "font-size:11px;letter-spacing:.06em;text-transform:uppercase;padding:3px 8px;border:1px solid "+(band==="Unsatisfactory"?"var(--color-text);background:var(--color-accent-900);color:var(--color-bg)":"var(--color-divider);color:var(--color-neutral-700)"),
+        delta: d===null ? "—" : (d>=0?"+":"")+d.toFixed(1),
+        deltaStyle: "text-align:right;font-variant-numeric:tabular-nums;color:"+(d===null?"var(--color-neutral-500)":d<-1.5?"var(--color-accent-900);font-weight:600":"var(--color-neutral-700)"),
+        crit: r.cur.crit,
+        critStyle: "text-align:right;font-weight:600;color:"+(r.cur.crit>=5?"var(--color-bg);background:var(--color-accent-900)":"var(--color-neutral-700)")
+      };
+    });
+    overdue.forEach(r=>{
+      league.push({rank:"—", branch:r.b.name, area:r.b.area, stype:r.b.stype,
+        date: r.cur ? r.cur.date+" · "+Math.round(r.stale)+"d ago" : "never audited",
+        dateStyle:"white-space:nowrap;color:var(--color-accent-700);font-weight:600",
+        score:"—", band:"Not audited",
+        bandStyle:"font-size:11px;letter-spacing:.06em;text-transform:uppercase;padding:3px 8px;border:1px dashed var(--color-divider);color:var(--color-neutral-600)",
+        delta:"—", deltaStyle:"text-align:right;color:var(--color-neutral-500)",
+        crit:"—", critStyle:"text-align:right;color:var(--color-neutral-500)"});
+    });
+
+    const watch = scored.filter(r=>r.cur.crit>=5 || r.cur.score<80)
+      .sort((x,y)=>x.cur.score-y.cur.score)
+      .map(r=>{
+        const bits = [r.cur.score.toFixed(1)+" · "+BAND(r.cur.score)];
+        if(r.cur.crit>=5) bits.push(r.cur.crit+" critical fails");
+        const weakCat = CATS.slice().sort((a,b)=>r.cur.cats[a.num]-r.cur.cats[b.num])[0];
+        bits.push("weakest: "+weakCat.short);
+        return {branch:r.b.name, line:bits.join(" · ")};
+      });
+
+    const heatRows = scored.slice().sort((x,y)=>y.cur.score-x.cur.score).map(r=>({
+      branch:r.b.name, score:r.cur.score.toFixed(1),
+      cells: CATS.map(c=>{
+        const v = r.cur.cats[c.num];
+        return {label: v==null?"—":Math.round(v*100), style:this.heatStyle(v==null?1:v)};
+      })
+    }));
+
+    return {
+      areaLabel: area==="All" ? "all "+branches.length+" branches" : area+" · "+branches.length+" branches",
+      cycleLabel: cycleDate,
+      setAll:()=>this.setState({area:"All"}), setNorth:()=>this.setState({area:"North"}), setSouth:()=>this.setState({area:"South"}),
+      prevCycle:e=>{e.preventDefault(); this.setState({cycle:Math.max(0,ci-1)});},
+      nextCycle:e=>{e.preventDefault(); this.setState({cycle:Math.min(WEEKS.length-1,ci+1)});},
+      avgScore: scored.length ? avg.toFixed(1) : "—",
+      avgBand: scored.length ? BAND(avg) : "no audits in this cycle",
+      avgDelta: dAvg===null ? "no prior cycle" : (dAvg>=0?"+":"")+dAvg.toFixed(1),
+      coverage: onTime+" / "+branches.length,
+      overdueLine: overdue.length ? overdue.length+" overdue: "+overdue.map(r=>r.b.name).join(", ") : "every branch audited on cadence",
+      critCount: watch.filter(r=>true).length ? String(scored.filter(r=>r.cur.crit>=5).length) : "0",
+      weakestName: weakest ? "Cat "+weakest.num+" · "+weakest.short : "—",
+      weakestLine: weakest ? Math.round(catAvg[weakest.num]*100)+"% portfolio average · "+weakest.weight+"% of the grade" : "",
+      hasWatch: watch.length>0,
+      watchRows: watch,
+      leagueRows: league,
+      catCols: CATS,
+      heatRows,
+      catFooter: CATS.map(c=>({label: catAvg[c.num]==null?"—":Math.round(catAvg[c.num]*100), style:this.heatStyle(catAvg[c.num]==null?1:catAvg[c.num], true)})),
+      sourceLine: live.length
+        ? live.length+" audit"+(live.length===1?"":"s")+" from this device, plus seeded sample history for the remaining branches"
+        : "Seeded sample history — no audits submitted from this device yet. Real records appear here as audits are signed off."
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -27,7 +27,7 @@ a:hover{color:var(--color-accent-700)}
   .qs-stage{gap:0!important;align-items:stretch!important}
   .qs-device{width:100vw!important;height:100dvh!important;box-shadow:none!important;border:0!important}
   .qs-device>.corner{display:none!important}
-  .qs-status{height:env(safe-area-inset-top,0px)!important;padding:0 16px!important}
+  .qs-status{height:auto!important;min-height:0!important;padding:calc(env(safe-area-inset-top,0px) + 8px) 16px 8px!important;justify-content:flex-end!important}
   .qs-status>span:first-child{display:none!important}
   .qs-caption{display:none!important}
 }
@@ -110,7 +110,24 @@ a:hover{color:var(--color-accent-700)}
 <div class="blueprint" style="padding:14px;display:flex;flex-direction:column;gap:12px">
 <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
 <div style="font:600 9.5px/1 var(--font-body);letter-spacing:.14em;text-transform:uppercase;color:var(--color-accent-700)">Details of the audit</div>
-<div class="field"><label>Branch</label><input class="input" value="{{ mBranch }}" onChange="{{ setBranch }}"></div>
+<div class="field"><label>Branch</label>
+<select class="input" value="{{ mBranch }}" onChange="{{ setBranch }}">
+<option value="SM Pampanga">SM Pampanga · North</option>
+<option value="SM North EDSA">SM North EDSA · North</option>
+<option value="Trinoma">Trinoma · North</option>
+<option value="Timog">Timog · North</option>
+<option value="Greenhills">Greenhills · North</option>
+<option value="Tiendesitas">Tiendesitas · North</option>
+<option value="G2">G2 · South</option>
+<option value="Magallanes">Magallanes · South</option>
+<option value="NAIA T3">NAIA T3 · South</option>
+<option value="Ermita">Ermita · South</option>
+<option value="MOA">MOA · South</option>
+<option value="Southmall">Southmall · South</option>
+<option value="Sta. Rosa">Sta. Rosa · South</option>
+<option value="Festival">Festival · South</option>
+</select>
+</div>
 <div style="display:flex;gap:10px">
 <div class="field" style="flex:1"><label>Date of audit</label><input class="input" type="date" value="{{ mDate }}" onChange="{{ setDate }}"></div>
 <div class="field" style="flex:1"><label>Time in</label><input class="input" type="time" value="{{ mTime }}" onChange="{{ setTime }}"></div>
@@ -135,6 +152,19 @@ a:hover{color:var(--color-accent-700)}
 <label class="seg-opt" style="flex:1;justify-content:center"><input type="radio" name="role" checked="{{ isModRole }}" onChange="{{ setRoleMod }}">Branch MOD</label>
 </div>
 <div style="font-size:11.5px;line-height:1.5;color:var(--color-neutral-600)">{{ roleNote }}</div>
+</div>
+
+<div class="blueprint" style="padding:14px;display:flex;flex-direction:column;gap:8px">
+<i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+<div style="font:600 9.5px/1 var(--font-body);letter-spacing:.14em;text-transform:uppercase;color:var(--color-accent-700)">Portfolio standing</div>
+<div style="display:flex;align-items:flex-end;gap:14px">
+<div>
+<div style="font:600 30px/1 var(--font-heading)">{{ dashAvg }}</div>
+<div style="font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-neutral-600)">Portfolio avg</div>
+</div>
+<div style="flex:1;font-size:11.5px;line-height:1.5;color:var(--color-neutral-700)">{{ dashLine }}</div>
+</div>
+<a href="QSCV Dashboard.dc.html" style="font-size:12px;font-weight:600">Open the full dashboard →</a>
 </div>
 
 <div style="display:flex;align-items:center;gap:8px;font-size:11px;color:var(--color-neutral-600)">
@@ -658,6 +688,33 @@ class Component extends DCLogic {
       const raw = localStorage.getItem(KEY);
       if(raw){ const s = JSON.parse(raw); this.setState(Object.assign({}, s, {toast:null, timing:null, sheet:null})); }
     }catch(e){}
+    import("./qscv-history.js").then(H=>{
+      let live = [];
+      try{ const raw2 = localStorage.getItem(H.ARCHIVE_KEY); if(raw2) live = JSON.parse(raw2)||[]; }catch(e){}
+      this.setState({hist:H, live});
+    }).catch(()=>{});
+  }
+  /* Append the signed-off audit to the on-device archive the dashboard reads. */
+  archive(){
+    const H = this.state.hist;
+    if(!H) return;
+    const T = this.totals(), s = this.state;
+    const cats = {};
+    T.rows.forEach(r=>{ cats[r.c.num] = r.st.pct===null ? null : Math.round(r.st.pct*100)/100; });
+    const b = H.BRANCHES.filter(x=>x.name===s.meta.branch)[0];
+    const dev = this.deviations();
+    const rec = {branch:s.meta.branch, area: b?b.area:"North", stype:s.meta.stype, date:s.meta.date,
+      cats, score: Math.round(T.score*10)/10, crit:this.criticalFails(),
+      dev:{H:dev.d.H, M:dev.d.M, L:dev.d.L}, critical:this.criticalFails()>=5,
+      auditor:s.meta.auditor, submittedAt:Date.now()};
+    try{
+      const raw = localStorage.getItem(H.ARCHIVE_KEY);
+      const all = raw ? (JSON.parse(raw)||[]) : [];
+      const i = all.findIndex(r=>r.branch===rec.branch && r.date===rec.date);
+      if(i>=0) all[i] = rec; else all.push(rec);
+      localStorage.setItem(H.ARCHIVE_KEY, JSON.stringify(all));
+      this.setState({live:all});
+    }catch(e){}
   }
   componentDidUpdate(){ this.persist(); }
   persist(){
@@ -909,6 +966,21 @@ class Component extends DCLogic {
       };
     });
 
+    const dash = (()=>{
+      const H = s.hist;
+      if(!H) return {avg:"—", line:"Loading branch history…"};
+      const all = H.RECORDS.concat(s.live||[]);
+      const latest = {};
+      all.forEach(r=>{ if(!latest[r.branch] || r.date>latest[r.branch].date) latest[r.branch]=r; });
+      const rows = Object.keys(latest).map(k=>latest[k]);
+      if(!rows.length) return {avg:"—", line:"No audits recorded yet."};
+      const avg = rows.reduce((a,r)=>a+r.score,0)/rows.length;
+      const worst = rows.slice().sort((a,b)=>a.score-b.score)[0];
+      const flagged = rows.filter(r=>r.crit>=5 || r.score<80).length;
+      return {avg: avg.toFixed(1),
+        line: rows.length+" branches · "+flagged+" needing attention · lowest is "+worst.branch+" at "+worst.score.toFixed(1)};
+    })();
+
     const sheet = s.sheet;
     const sev = sheet ? SEV[sheet.crit] : "";
     const e = sheet ? this.ev(sheet.key) : {};
@@ -959,7 +1031,7 @@ class Component extends DCLogic {
       list:{label:"Back to categories", act:()=>this.go("cats")},
       speed:{label:"Back to categories", act:()=>this.go("cats")},
       summary:{label:"Proceed to sign-off", act:()=>this.go("sign")},
-      sign:{label: (s.signed.a&&s.signed.b) ? "Submit audit" : "Both signatures required", act:()=> (s.signed.a&&s.signed.b) ? this.go("export") : this.flash("Auditor and MOD must both sign before submitting.")},
+      sign:{label: (s.signed.a&&s.signed.b) ? "Submit audit" : "Both signatures required", act:()=> (s.signed.a&&s.signed.b) ? (this.archive(), this.go("export")) : this.flash("Auditor and MOD must both sign before submitting.")},
       export:{label:"Generate report", act:()=>{ this.persist(); this.flash("Opening the printable report — use your browser's Print / Save as PDF."); setTimeout(()=>{ try{ window.open(encodeURI("./QSCV Audit Report.dc.html"), "_blank"); }catch(e){} }, 500); }}
     }[s.screen];
 
@@ -1036,6 +1108,7 @@ class Component extends DCLogic {
         both:"Both files, plus each logged deviation becomes a dated CAPA task assigned to the branch MOD."}[s.dest],
       primaryLabel: primary.label, primaryAction: primary.act,
       platformLabel: platform==="iOS" ? "iPhone 15 · 390 × 844" : "Android · 390 × 844",
+      dashAvg: dash.avg, dashLine: dash.line,
       toast: s.toast,
       reset: e2=>{ e2.preventDefault(); try{localStorage.removeItem(KEY);}catch(err){} this.setState({screen:"home",cat:null,scores:{},ev:{},open:{},speed:{},signed:{a:false,b:false},savedAt:null,sheet:null}); this.clearSig("a"); this.clearSig("b"); }
     };

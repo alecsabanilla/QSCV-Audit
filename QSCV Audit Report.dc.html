@@ -22,15 +22,11 @@ doc-page:not(:defined){visibility:hidden}
 
 <doc-page margin="0.6in">
 
-<div slot="header" style="display:flex;justify-content:space-between;align-items:baseline;font:600 8pt/1 var(--font-body);letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700);border-bottom:1px solid var(--color-divider);padding-bottom:6px">
+<div style="font-family:var(--font-body);color:var(--color-text)">
+
+<div style="display:flex;justify-content:space-between;align-items:baseline;font:600 8pt/1.4 var(--font-body);letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700);border-bottom:1px solid var(--color-divider);padding-bottom:6px;margin-bottom:22px">
 <span>RACKS · QSCV Audit Report</span><span>{{ branch }}</span>
 </div>
-
-<div slot="footer" style="display:flex;justify-content:space-between;font-size:7.5pt;color:var(--color-neutral-600);border-top:1px solid var(--color-divider);padding-top:6px">
-<span>QSCV Department · confidential</span><span>Generated {{ generated }}</span>
-</div>
-
-<div style="font-family:var(--font-body);color:var(--color-text)">
 
 <div style="font:600 8.5pt/1 var(--font-body);letter-spacing:.14em;text-transform:uppercase;color:var(--color-accent-700)">Quality · Service · Cleanliness · Value</div>
 <h1 style="font-size:30pt;line-height:1.02;margin:6px 0 14px">QSCV Audit Report</h1>
@@ -122,7 +118,7 @@ doc-page:not(:defined){visibility:hidden}
 <div style="font-size:9.5pt">{{ mod }}</div>
 </div>
 </div>
-<div style="font-size:8.5pt;line-height:1.5;color:var(--color-neutral-600);margin-top:10px">Signatures were captured on the auditing device. Deviations marked High risk become Critical CAPA tasks due within 24 hours; Major within 7 days; Minor at the next audit cycle.</div>
+<div style="font-size:8.5pt;line-height:1.5;color:var(--color-neutral-600);margin-top:10px;padding-top:10px;border-top:1px solid var(--color-divider)">QSCV Department · confidential · generated {{ generated }}. Signatures were captured on the auditing device. Deviations marked High risk become Critical CAPA tasks due within 24 hours; Major within 7 days; Minor at the next audit cycle.</div>
 
 </div>
 </doc-page>
