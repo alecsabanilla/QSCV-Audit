@@ -693,9 +693,15 @@ class Component extends DCLogic {
       try{ const raw2 = localStorage.getItem(H.ARCHIVE_KEY); if(raw2) live = JSON.parse(raw2)||[]; }catch(e){}
       this.setState({hist:H, live});
     }).catch(()=>{});
+    import("./qscv-cloud.js").then(cloud=>{
+      this.setState({cloud});
+      cloud.flushPending().catch(()=>{});
+    }).catch(()=>{});
   }
-  /* Append the signed-off audit to the on-device archive the dashboard reads. */
-  archive(){
+  /* Append the signed-off audit to the on-device archive (offline-safe fallback),
+     then push it to the shared Firestore database so the dashboard, VP, and brand
+     leads see it immediately from their own devices. */
+  async archive(){
     const H = this.state.hist;
     if(!H) return;
     const T = this.totals(), s = this.state;
@@ -703,10 +709,38 @@ class Component extends DCLogic {
     T.rows.forEach(r=>{ cats[r.c.num] = r.st.pct===null ? null : Math.round(r.st.pct*100)/100; });
     const b = H.BRANCHES.filter(x=>x.name===s.meta.branch)[0];
     const dev = this.deviations();
+    const id = (s.meta.branch+"_"+s.meta.date).replace(/[^a-zA-Z0-9_-]/g, "_");
+    const cloud = this.state.cloud;
+
+    /* Full finding-by-finding evidence log, uploading any attached photos to Storage. */
+    const findings = [];
+    for (const c of CATS) {
+      if (c.speed) continue;
+      for (let gi=0; gi<c.groups.length; gi++){
+        const g = c.groups[gi];
+        for (let ii=0; ii<g.items.length; ii++){
+          const key = c.num+"."+gi+"."+ii;
+          if (s.scores[key] !== "N") continue;
+          const it = g.items[ii];
+          const e = s.ev[key] || {};
+          let photoUrls = [];
+          if (cloud && (e.urls||[]).length){
+            const uploads = (e.urls||[]).filter(Boolean).map((url, pi)=>
+              cloud.uploadPhoto(url, "audits/"+id+"/"+key.replace(/\./g,"_")+"/"+pi+".jpg").catch(()=>null)
+            );
+            photoUrls = (await Promise.all(uploads)).filter(Boolean);
+          }
+          findings.push({key, category:c.num+" · "+c.name, risk:it[0], text:it[1],
+            note:e.note||"", capa:e.capa||"", repeat:!!e.repeat, photos:photoUrls});
+        }
+      }
+    }
+
     const rec = {branch:s.meta.branch, area: b?b.area:"North", stype:s.meta.stype, date:s.meta.date,
       cats, score: Math.round(T.score*10)/10, crit:this.criticalFails(),
       dev:{H:dev.d.H, M:dev.d.M, L:dev.d.L}, critical:this.criticalFails()>=5,
-      auditor:s.meta.auditor, submittedAt:Date.now()};
+      auditor:s.meta.auditor, mod:s.meta.mod, submittedAt:Date.now(), findings};
+
     try{
       const raw = localStorage.getItem(H.ARCHIVE_KEY);
       const all = raw ? (JSON.parse(raw)||[]) : [];
@@ -715,6 +749,11 @@ class Component extends DCLogic {
       localStorage.setItem(H.ARCHIVE_KEY, JSON.stringify(all));
       this.setState({live:all});
     }catch(e){}
+
+    if (cloud){
+      const res = await cloud.saveAudit(rec);
+      this.flash(res.ok ? "Submitted — synced to the portfolio dashboard." : "Submitted — saved on device, will sync once you're back online.");
+    }
   }
   componentDidUpdate(){ this.persist(); }
   persist(){

@@ -156,6 +156,17 @@ class Component extends DCLogic {
       }catch(e){}
       this.setState({H, live, cycle:H.WEEKS.length-1});
     });
+    /* Live subscription — every audit any auditor submits anywhere shows up here
+       automatically, no refresh needed. */
+    import("./qscv-cloud.js").then(cloud=>{
+      this._unsub = cloud.subscribeAudits(
+        records => this.setState({live: records}),
+        err => console.error("QSCV cloud sync error", err)
+      );
+    }).catch(()=>{});
+  }
+  componentWillUnmount(){
+    if (this._unsub) this._unsub();
   }
   heatStyle(v, foot){
     const bg = v>=0.91?"var(--color-accent-100)":v>=0.86?"var(--color-accent-200)":v>=0.80?"var(--color-accent-400)":v>=0.70?"var(--color-accent-700)":"var(--color-accent-900)";
@@ -269,8 +280,8 @@ class Component extends DCLogic {
       heatRows,
       catFooter: CATS.map(c=>({label: catAvg[c.num]==null?"—":Math.round(catAvg[c.num]*100), style:this.heatStyle(catAvg[c.num]==null?1:catAvg[c.num], true)})),
       sourceLine: live.length
-        ? live.length+" audit"+(live.length===1?"":"s")+" from this device, plus seeded sample history for the remaining branches"
-        : "Seeded sample history — no audits submitted from this device yet. Real records appear here as audits are signed off."
+        ? live.length+" real audit"+(live.length===1?"":"s")+" synced from the field, plus seeded sample history for branches not yet covered"
+        : "Seeded sample history — no audits submitted yet. Real records appear here live as auditors sign off in the field."
     };
   }
 }
