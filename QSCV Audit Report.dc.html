@@ -87,7 +87,16 @@ doc-page:not(:defined){visibility:hidden}
 <thead><tr><th style="width:34px">Cat</th><th>Finding</th><th style="width:58px">Severity</th><th style="width:150px">Note &amp; corrective action</th><th style="width:44px">Photos</th></tr></thead>
 <tbody>
 <sc-for list="{{ devRows }}" as="d" hint-placeholder-count="6">
-<tr><td style="color:var(--color-neutral-600)">{{ d.num }}</td><td>{{ d.text }}</td><td style="font-weight:600">{{ d.sev }}</td><td style="color:var(--color-neutral-700)">{{ d.note }}</td><td style="text-align:center">{{ d.photos }}</td></tr>
+<tr><td style="color:var(--color-neutral-600)">{{ d.num }}</td><td>{{ d.text }}</td><td style="font-weight:600">{{ d.sev }}</td><td style="color:var(--color-neutral-700)">{{ d.note }}</td><td style="text-align:center">{{ d.photoCount }}</td></tr>
+<sc-if value="{{ d.hasPhotos }}">
+<tr style="break-inside:avoid"><td></td><td colspan="4" style="padding:2px 6px 12px;border-bottom:1px solid var(--color-divider)">
+<div style="display:flex;gap:6px;flex-wrap:wrap">
+<sc-for list="{{ d.photos }}" as="p" hint-placeholder-count="2">
+<img src="{{ p.src }}" style="width:92px;height:92px;object-fit:cover;border:1px solid var(--color-divider)" />
+</sc-for>
+</div>
+</td></tr>
+</sc-if>
 </sc-for>
 </tbody>
 </table>
@@ -194,7 +203,9 @@ class Component extends DCLogic {
       if(e.note) bits.push(e.note);
       if(e.capa) bits.push("CAPA: "+e.capa);
       if(e.repeat) bits.push("Repeat finding.");
-      devRows.push({num:c.num, text:it[1], sev:SEV[it[0]], note: bits.length? bits.join(" — ") : "—", photos: e.photos? String(e.photos) : "—"});
+      const photos = (e.urls||[]).filter(Boolean).map(src=>({src}));
+      devRows.push({num:c.num, text:it[1], sev:SEV[it[0]], note: bits.length? bits.join(" — ") : "—",
+        photoCount: photos.length? String(photos.length) : "—", photos, hasPhotos: photos.length>0});
     }));});
 
     const speedRows = MEASURES.map(m=>{

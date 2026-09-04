@@ -32,9 +32,11 @@ export const CATS = [
   {num:"IX",   short:"Records",          weight:10}
 ];
 
-/* Six weekly cycles ending 2026-08-31 (most recent last). */
+/* Six weekly cycles ending today (most recent last). Recomputed on every load so the
+   dashboard always has a "current" cycle to show real submitted audits in, instead of
+   a fixed past date that real-world audits would eventually fall after. */
 export const WEEKS = (() => {
-  const out = [], end = Date.UTC(2026, 7, 31);
+  const out = [], end = Date.now();
   for (let i = 5; i >= 0; i--) out.push(new Date(end - i * 7 * 864e5).toISOString().slice(0, 10));
   return out;
 })();

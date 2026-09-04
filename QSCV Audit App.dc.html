@@ -763,7 +763,7 @@ class Component extends DCLogic {
       try{
         const s = this.state;
         const evLight = {};
-        Object.keys(s.ev).forEach(k=>{ const v=s.ev[k]; evLight[k]={photos:v.photos||0,note:v.note||"",capa:v.capa||"",repeat:!!v.repeat}; });
+        Object.keys(s.ev).forEach(k=>{ const v=s.ev[k]; evLight[k]={photos:v.photos||0,urls:(v.urls||[]).filter(Boolean),note:v.note||"",capa:v.capa||"",repeat:!!v.repeat}; });
         localStorage.setItem(KEY, JSON.stringify({screen:s.screen,role:s.role,cat:s.cat,scores:s.scores,ev:evLight,open:s.open,meta:s.meta,speed:s.speed,daypart:s.daypart,signed:s.signed,dest:s.dest,savedAt:Date.now()}));
       }catch(e){}
     }, 400);
@@ -1038,9 +1038,32 @@ class Component extends DCLogic {
           if(!f) return;
           const r = new FileReader();
           r.onload = () => {
-            const next = urls.slice(); next[i] = r.result;
-            this.patchEv(sheet.key, {urls: next, photos: next.filter(Boolean).length});
-            this.flash("Photo attached to this finding.");
+            /* Downscale + re-compress so a phone photo (often 3-8MB) fits comfortably
+               in the saved draft — several full-res photos would blow past localStorage's
+               ~5-10MB limit. 1000px on the long edge at JPEG q0.65 is plenty for a report. */
+            const img = new Image();
+            img.onload = () => {
+              const maxDim = 1000;
+              let w = img.width, h = img.height;
+              if (w > maxDim || h > maxDim){
+                const scale = maxDim / Math.max(w, h);
+                w = Math.round(w*scale); h = Math.round(h*scale);
+              }
+              const canvas = document.createElement("canvas");
+              canvas.width = w; canvas.height = h;
+              canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+              let compressed;
+              try{ compressed = canvas.toDataURL("image/jpeg", 0.65); }catch(e){ compressed = r.result; }
+              const next = urls.slice(); next[i] = compressed;
+              this.patchEv(sheet.key, {urls: next, photos: next.filter(Boolean).length});
+              this.flash("Photo attached to this finding.");
+            };
+            img.onerror = () => {
+              const next = urls.slice(); next[i] = r.result;
+              this.patchEv(sheet.key, {urls: next, photos: next.filter(Boolean).length});
+              this.flash("Photo attached to this finding.");
+            };
+            img.src = r.result;
           };
           r.readAsDataURL(f);
           ev2.target.value = "";
