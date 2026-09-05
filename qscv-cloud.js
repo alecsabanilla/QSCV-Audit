@@ -75,10 +75,8 @@ export function init(){
       user = u ? {uid:u.uid, email:u.email} : null;
       profile = null;
       if(u){
-        try{
-          const snap = await M.getDoc(M.doc(db, "users", u.uid));
-          profile = snap.exists() ? snap.data() : {name:u.email, role:"auditor"};
-        }catch(e){ profile = {name:u.email, role:"auditor"}; }
+        profile = {name:u.email, role:"auditor"};
+        watchProfile(u.uid);
         setStatus("live", "");
         watchAudits();
         watchBranches();
@@ -94,6 +92,24 @@ export function init(){
     throw err;
   });
   return booting;
+}
+
+let unProfile = null;
+function watchProfile(uid){
+  if(unProfile){ unProfile(); unProfile = null; }
+  /* Live rather than one-shot: a role granted after sign-in applies immediately,
+     and a failed first read (offline, cold cache) recovers on its own. */
+  unProfile = M.onSnapshot(M.doc(db, "users", uid),
+    snap => {
+      const d = snap.exists() ? snap.data() : null;
+      profile = d || {name:(user && user.email) || "", role:"auditor"};
+      emit("auth", {user, profile});
+    },
+    () => {
+      if(!profile) profile = {name:(user && user.email) || "", role:"auditor"};
+      emit("auth", {user, profile});
+    }
+  );
 }
 
 let unAudits = null, unBranches = null;
@@ -123,6 +139,7 @@ function watchBranches(){
 function stopWatch(){
   if(unAudits){ unAudits(); unAudits = null; }
   if(unBranches){ unBranches(); unBranches = null; }
+  if(unProfile){ unProfile(); unProfile = null; }
   audits = []; emit("audits", audits);
 }
 
