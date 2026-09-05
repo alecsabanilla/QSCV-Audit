@@ -79,7 +79,7 @@ export function init(){
       user = u ? {uid:u.uid, email:u.email} : null;
       profile = null;
       if(u){
-        profile = {name:u.email, role:"auditor"};
+        profile = {name:u.email, role:"auditor", _found:false, _uid:u.uid, _err:null};
         watchProfile(u.uid);
         setStatus("connecting", "");
         watchAudits();
@@ -112,11 +112,14 @@ function watchProfile(uid){
   unProfile = M.onSnapshot(M.doc(db, "users", uid),
     snap => {
       const d = snap.exists() ? snap.data() : null;
-      profile = d || {name:(user && user.email) || "", role:"auditor"};
+      profile = Object.assign({name:(user && user.email) || "", role:"auditor"}, d || {}, {
+        _found: snap.exists(), _uid: uid, _err: null
+      });
       emit("auth", {user, profile});
     },
-    () => {
-      if(!profile) profile = {name:(user && user.email) || "", role:"auditor"};
+    err => {
+      profile = {name:(user && user.email) || "", role:"auditor", _found:false, _uid:uid,
+                 _err:(err && err.code) || "read failed"};
       emit("auth", {user, profile});
     }
   );
