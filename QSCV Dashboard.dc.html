@@ -426,7 +426,7 @@ class Component extends DCLogic {
         : "No audits yet. Every figure on this page comes from a signed-off audit — nothing is sampled or estimated.",
 
       /* ---- cloud / identity ---- */
-      cloudLabel: ({connecting:"Connecting",live:"Live",offline:"Offline · cached","signed-out":"Not signed in",error:"Sync error"})[this.state.cStatus] || "Local only",
+      cloudLabel: ({connecting:"Connecting",live:"Live",offline:"Offline","signed-out":"Not signed in",error:"Sync error"})[this.state.cStatus] || "Local only",
       cloudColor: this.state.cStatus==="live" ? "var(--color-accent)" : this.state.cStatus==="error" ? "var(--color-accent-900)" : "var(--color-neutral-500)",
       cloudNote: this.state.cNote || "",
       hasCloudNote: !!this.state.cNote,

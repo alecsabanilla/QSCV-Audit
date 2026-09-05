@@ -85,6 +85,11 @@ export function init(){
         watchAudits();
         watchBranches();
         probe();
+        if(typeof window !== "undefined" && !window.__qscvNet){
+          window.__qscvNet = true;
+          window.addEventListener("online", () => { if(user) probe(); });
+          window.addEventListener("offline", () => { if(user) setStatus("offline", ""); });
+        }
       }else{
         stopWatch();
         setStatus("signed-out", "");
@@ -117,6 +122,21 @@ function watchProfile(uid){
   );
 }
 
+let degradeTimer = null;
+/* A snapshot flagged fromCache does NOT mean the connection is gone — Firestore
+   emits cached snapshots routinely. Only call it offline if a real server read
+   then fails, so a healthy listener never gets mislabelled. */
+function maybeDegrade(){
+  if(degradeTimer) return;
+  degradeTimer = setTimeout(() => {
+    degradeTimer = null;
+    if(typeof navigator !== "undefined" && navigator.onLine === false){ setStatus("offline", ""); return; }
+    M.getDocsFromServer(M.query(M.collection(db, "audits"), M.limit(1)))
+      .then(() => setStatus("live", ""))
+      .catch(() => setStatus("offline", ""));
+  }, 2000);
+}
+
 let unAudits = null, unBranches = null;
 let everLive = false;
 function watchAudits(){
@@ -128,12 +148,10 @@ function watchAudits(){
       emit("audits", audits);
       if(!snap.metadata.fromCache){
         everLive = true;
-        setStatus("live", snap.metadata.hasPendingWrites ? "queued" : "");
+        setStatus("live", snap.metadata.hasPendingWrites ? "Some changes are still uploading." : "");
       }else if(everLive){
-        setStatus("offline", snap.metadata.hasPendingWrites ? "queued" : "");
+        maybeDegrade();
       }
-      /* Before the first server snapshot, stay on "connecting" rather than
-         claiming offline — the cached snapshot always arrives first. */
     },
     err => setStatus("error", err.message)
   );
@@ -160,11 +178,16 @@ function stopWatch(){
    of sitting on "connecting" forever. */
 async function probe(){
   try{
-    await M.getDocs(M.query(M.collection(db, "audits"), M.limit(1), {source:"server"}));
+    await M.getDocsFromServer(M.query(M.collection(db, "audits"), M.limit(1)));
+    everLive = true;
+    setStatus("live", "");
   }catch(err){
-    const msg = (err && err.code === "permission-denied")
-      ? "Firestore rules are blocking reads — publish firestore.rules."
-      : "Can't reach Firestore (" + ((err && err.code) || "network") + "). A VPN, work proxy or blocker may be stopping it.";
+    const code = (err && err.code) || "network";
+    const msg = code === "permission-denied"
+      ? "Firestore rules are blocking reads — publish firestore.rules, and check you're signed in."
+      : code === "failed-precondition"
+        ? "Firestore isn't set up for this project yet — create the database in the Firebase console."
+        : "Can't reach Firestore (" + code + "). A VPN, work proxy or browser blocker may be stopping it.";
     if(!everLive) setStatus("error", msg);
   }
 }
