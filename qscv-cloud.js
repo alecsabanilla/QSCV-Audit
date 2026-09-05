@@ -65,7 +65,11 @@ export function init(){
     auth = M.getAuth(app);
     try{
       db = M.initializeFirestore(app, {
-        localCache: M.persistentLocalCache({tabManager: M.persistentMultipleTabManager()})
+        localCache: M.persistentLocalCache({tabManager: M.persistentMultipleTabManager()}),
+        /* Corporate proxies, VPNs and some extensions block Firestore's WebChannel
+           stream, which leaves the SDK serving cache forever. Auto-detect falls
+           back to long-polling instead of silently staying offline. */
+        experimentalAutoDetectLongPolling: true
       });
     }catch(e){
       db = M.getFirestore(app);   // another tab already owns the cache
@@ -77,9 +81,10 @@ export function init(){
       if(u){
         profile = {name:u.email, role:"auditor"};
         watchProfile(u.uid);
-        setStatus("live", "");
+        setStatus("connecting", "");
         watchAudits();
         watchBranches();
+        probe();
       }else{
         stopWatch();
         setStatus("signed-out", "");
@@ -113,15 +118,22 @@ function watchProfile(uid){
 }
 
 let unAudits = null, unBranches = null;
+let everLive = false;
 function watchAudits(){
   if(unAudits) return;
   const q = M.query(M.collection(db, "audits"), M.orderBy("submittedAt", "desc"), M.limit(600));
-  unAudits = M.onSnapshot(q,
+  unAudits = M.onSnapshot(q, {includeMetadataChanges:true},
     snap => {
       audits = snap.docs.map(d => Object.assign({id:d.id}, d.data()));
       emit("audits", audits);
-      setStatus(snap.metadata.fromCache ? "offline" : "live",
-                snap.metadata.hasPendingWrites ? "queued" : "");
+      if(!snap.metadata.fromCache){
+        everLive = true;
+        setStatus("live", snap.metadata.hasPendingWrites ? "queued" : "");
+      }else if(everLive){
+        setStatus("offline", snap.metadata.hasPendingWrites ? "queued" : "");
+      }
+      /* Before the first server snapshot, stay on "connecting" rather than
+         claiming offline — the cached snapshot always arrives first. */
     },
     err => setStatus("error", err.message)
   );
@@ -140,7 +152,21 @@ function stopWatch(){
   if(unAudits){ unAudits(); unAudits = null; }
   if(unBranches){ unBranches(); unBranches = null; }
   if(unProfile){ unProfile(); unProfile = null; }
+  everLive = false;
   audits = []; emit("audits", audits);
+}
+
+/* One direct server read so a blocked connection reports a real reason instead
+   of sitting on "connecting" forever. */
+async function probe(){
+  try{
+    await M.getDocs(M.query(M.collection(db, "audits"), M.limit(1), {source:"server"}));
+  }catch(err){
+    const msg = (err && err.code === "permission-denied")
+      ? "Firestore rules are blocking reads — publish firestore.rules."
+      : "Can't reach Firestore (" + ((err && err.code) || "network") + "). A VPN, work proxy or blocker may be stopping it.";
+    if(!everLive) setStatus("error", msg);
+  }
 }
 
 export async function signIn(email, password){

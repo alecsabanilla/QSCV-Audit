@@ -55,6 +55,9 @@ a:hover{color:var(--color-accent-700)}
 <sc-if value="{{ signedOut }}" hint-placeholder-val="{{ true }}">
 <div style="font-size:12.5px;line-height:1.5;margin-top:4px">Sign in to see the whole portfolio. Signed out, this shows only what was audited on this device.</div>
 </sc-if>
+<sc-if value="{{ hasCloudNote }}" hint-placeholder-val="{{ false }}">
+<div style="font-size:12px;line-height:1.5;margin-top:5px;color:var(--color-accent-900)">{{ cloudNote }}</div>
+</sc-if>
 </div>
 </div>
 
@@ -250,7 +253,7 @@ class Component extends DCLogic {
     import("./qscv-cloud.js").then(C=>{
       this.setState({cloud:C});
       this._offAuth = C.onAuth(a=>this.setState({cUser:a.user, cProfile:a.profile}));
-      this._offStat = C.onStatus(s=>this.setState({cStatus:s.status}));
+      this._offStat = C.onStatus(s=>this.setState({cStatus:s.status, cNote:s.note}));
       this._offAud  = C.onAudits(cloudRows=>this.setState({cloudRows}));
       C.init().catch(()=>{});
     }).catch(()=>{});
@@ -425,6 +428,8 @@ class Component extends DCLogic {
       /* ---- cloud / identity ---- */
       cloudLabel: ({connecting:"Connecting",live:"Live",offline:"Offline · cached","signed-out":"Not signed in",error:"Sync error"})[this.state.cStatus] || "Local only",
       cloudColor: this.state.cStatus==="live" ? "var(--color-accent)" : this.state.cStatus==="error" ? "var(--color-accent-900)" : "var(--color-neutral-500)",
+      cloudNote: this.state.cNote || "",
+      hasCloudNote: !!this.state.cNote,
       signedIn: !!this.state.cUser,
       signedOut: !this.state.cUser,
       authName: (this.state.cProfile && this.state.cProfile.name) || (this.state.cUser ? this.state.cUser.email : ""),
