@@ -11,6 +11,11 @@
 <link rel="stylesheet" href="_ds/industry-66f186c5-855f-4942-a2fc-ba3ddbeae0dd/styles.css">
 <script src="_ds/industry-66f186c5-855f-4942-a2fc-ba3ddbeae0dd/_ds_bundle.js"></script>
 <style>
+:root{
+--color-accent:#3f6b4a;--color-accent-2:#588f63;
+--color-accent-100:#edf4ee;--color-accent-200:#d3e6d6;--color-accent-300:#aecdb3;--color-accent-400:#83b08b;--color-accent-500:#588f63;--color-accent-600:#45744f;--color-accent-700:#2f5a3b;--color-accent-800:#204029;--color-accent-900:#14291a;
+--color-accent-2-100:#edf4ee;--color-accent-2-200:#d3e6d6;--color-accent-2-300:#aecdb3;--color-accent-2-400:#83b08b;--color-accent-2-500:#588f63;--color-accent-2-600:#45744f;--color-accent-2-700:#2f5a3b;--color-accent-2-800:#204029;--color-accent-2-900:#14291a;
+}
 body{margin:0;background:var(--color-bg)}
 a{color:var(--color-accent);text-decoration:none}
 a:hover{color:var(--color-accent-700)}
@@ -75,7 +80,7 @@ a:hover{color:var(--color-accent-700)}
 <div class="qs-status" style="height:44px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 20px;font-size:12px;font-weight:600;color:var(--color-neutral-800)">
 <span>9:41</span>
 <div style="display:flex;align-items:center;gap:6px;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--color-accent-700)">
-<span style="width:6px;height:6px;background:var(--color-accent);display:block;animation:qsPulse 2.4s infinite"></span>{{ netLabel }}
+<span style="width:6px;height:6px;background:{{ cloudColor }};display:block;animation:qsPulse 2.4s infinite"></span>{{ cloudLabel }}
 </div>
 </div>
 
@@ -107,25 +112,50 @@ a:hover{color:var(--color-accent-700)}
 
 <sc-if value="{{ isHome }}" hint-placeholder-val="{{ true }}">
 <div style="padding:18px;display:flex;flex-direction:column;gap:16px;animation:qsIn .3s ease">
+
+<div class="blueprint" style="padding:14px;display:flex;flex-direction:column;gap:10px">
+<i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+<div style="font:600 9.5px/1 var(--font-body);letter-spacing:.14em;text-transform:uppercase;color:var(--color-accent-700)">Auditor account</div>
+
+<sc-if value="{{ signedOut }}" hint-placeholder-val="{{ true }}">
+<div style="display:flex;flex-direction:column;gap:10px">
+<div class="field"><label>Work email</label>
+<input class="input" type="email" autoComplete="username" placeholder="you@racks.com.ph" value="{{ email }}" onChange="{{ setEmail }}" style="min-height:44px">
+</div>
+<div class="field"><label>Password</label>
+<input class="input" type="password" autoComplete="current-password" value="{{ pw }}" onChange="{{ setPw }}" style="min-height:44px">
+</div>
+<sc-if value="{{ hasAuthErr }}" hint-placeholder-val="{{ false }}">
+<div style="font-size:11.5px;line-height:1.5;color:var(--color-accent-900);border-left:2px solid var(--color-accent-900);padding-left:8px">{{ authErr }}</div>
+</sc-if>
+<button class="btn btn-primary blueprint" style="min-height:44px;width:100%" onClick="{{ onSignIn }}">
+<i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>{{ authBtnLabel }}
+</button>
+</div>
+</sc-if>
+
+<sc-if value="{{ signedIn }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+<div style="min-width:0">
+<div style="font:600 14px/1.2 var(--font-heading)">{{ authName }}</div>
+<div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-neutral-600);margin-top:3px">{{ authRole }} · {{ cloudLabel }}</div>
+</div>
+<button class="btn btn-secondary" style="min-height:44px;padding:0 14px;flex:none" onClick="{{ onSignOut }}">Sign out</button>
+</div>
+<div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--color-accent-700)">{{ cloudCount }}</div>
+</sc-if>
+
+<div style="font-size:11.5px;line-height:1.55;color:var(--color-neutral-700)">{{ syncNote }}</div>
+</div>
+
 <div class="blueprint" style="padding:14px;display:flex;flex-direction:column;gap:12px">
 <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
 <div style="font:600 9.5px/1 var(--font-body);letter-spacing:.14em;text-transform:uppercase;color:var(--color-accent-700)">Details of the audit</div>
 <div class="field"><label>Branch</label>
 <select class="input" value="{{ mBranch }}" onChange="{{ setBranch }}">
-<option value="SM Pampanga">SM Pampanga · North</option>
-<option value="SM North EDSA">SM North EDSA · North</option>
-<option value="Trinoma">Trinoma · North</option>
-<option value="Timog">Timog · North</option>
-<option value="Greenhills">Greenhills · North</option>
-<option value="Tiendesitas">Tiendesitas · North</option>
-<option value="G2">G2 · South</option>
-<option value="Magallanes">Magallanes · South</option>
-<option value="NAIA T3">NAIA T3 · South</option>
-<option value="Ermita">Ermita · South</option>
-<option value="MOA">MOA · South</option>
-<option value="Southmall">Southmall · South</option>
-<option value="Sta. Rosa">Sta. Rosa · South</option>
-<option value="Festival">Festival · South</option>
+<sc-for list="{{ branchList }}" as="b" hint-placeholder-count="14">
+<option value="{{ b.name }}">{{ b.label }}</option>
+</sc-for>
 </select>
 </div>
 <div style="display:flex;gap:10px">
@@ -678,7 +708,9 @@ class Component extends DCLogic {
       scores:{}, ev:{}, open:{}, sheet:null,
       meta:{branch:"SM North EDSA", date:"2026-09-01", time:"11:30", auditor:"A. Sabanilla", mod:"J. Cruz", stype:"Mall", highlights:""},
       speed:{}, daypart:"Lunch", timing:null, clock:0,
-      signed:{a:false,b:false}, dest:"pdf", toast:null, savedAt:null
+      signed:{a:false,b:false}, dest:"pdf", toast:null, savedAt:null,
+      cloud:null, cUser:null, cProfile:null, cStatus:"connecting", cNote:"",
+      cloudRows:[], branches:[], email:"", pw:"", authErr:"", authBusy:false
     };
     this.sigA = React.createRef(); this.sigB = React.createRef();
     this.drawing = null;
@@ -693,15 +725,49 @@ class Component extends DCLogic {
       try{ const raw2 = localStorage.getItem(H.ARCHIVE_KEY); if(raw2) live = JSON.parse(raw2)||[]; }catch(e){}
       this.setState({hist:H, live});
     }).catch(()=>{});
-    import("./qscv-cloud.js").then(cloud=>{
-      this.setState({cloud});
-      cloud.flushPending().catch(()=>{});
+    import("./qscv-photos.js").then(P=>{
+      this.photos = P;
+      return P.loadAll().then(map=>{
+        const ev = Object.assign({}, this.state.ev);
+        Object.keys(map).forEach(k=>{
+          const urls = map[k] || [];
+          ev[k] = Object.assign({photos:0, note:"", capa:"", repeat:false}, ev[k], {
+            urls, photos: urls.filter(Boolean).length
+          });
+        });
+        this.setState({ev});
+      });
+    }).catch(()=>{});
+    import("./qscv-cloud.js").then(C=>{
+      this.setState({cloud:C, branches:C.getBranches()});
+      this._offAuth = C.onAuth(a=>this.setState({cUser:a.user, cProfile:a.profile}));
+      this._offStat = C.onStatus(s=>this.setState({cStatus:s.status, cNote:s.note}));
+      this._offBr   = C.onBranches(b=>this.setState({branches:b}));
+      this._offAud  = C.onAudits(cloudRows=>this.setState({cloudRows}));
+      C.init().catch(()=>{});
     }).catch(()=>{});
   }
-  /* Append the signed-off audit to the on-device archive (offline-safe fallback),
-     then push it to the shared Firestore database so the dashboard, VP, and brand
-     leads see it immediately from their own devices. */
-  async archive(){
+  componentWillUnmount(){
+    ["_offAuth","_offStat","_offBr","_offAud"].forEach(k=>{ if(this[k]) this[k](); });
+  }
+  /* This device's archive plus everything other auditors have submitted. */
+  allRecords(){
+    const C = this.state.cloud;
+    const local = this.state.live || [];
+    if(!C) return local;
+    return C.mergeAudits(local, this.state.cloudRows || []).filter(r=>!r.voided);
+  }
+  doSignIn(e){
+    if(e) e.preventDefault();
+    const C = this.state.cloud;
+    if(!C) return;
+    this.setState({authBusy:true, authErr:""});
+    C.signIn(this.state.email, this.state.pw)
+      .then(()=>{ this.setState({authBusy:false, pw:"", authErr:""}); this.flash("Signed in — audits now sync"); })
+      .catch(err=>this.setState({authBusy:false, authErr: C.authMessage(err)}));
+  }
+  /* Append the signed-off audit to the on-device archive the dashboard reads. */
+  archive(){
     const H = this.state.hist;
     if(!H) return;
     const T = this.totals(), s = this.state;
@@ -709,38 +775,10 @@ class Component extends DCLogic {
     T.rows.forEach(r=>{ cats[r.c.num] = r.st.pct===null ? null : Math.round(r.st.pct*100)/100; });
     const b = H.BRANCHES.filter(x=>x.name===s.meta.branch)[0];
     const dev = this.deviations();
-    const id = (s.meta.branch+"_"+s.meta.date).replace(/[^a-zA-Z0-9_-]/g, "_");
-    const cloud = this.state.cloud;
-
-    /* Full finding-by-finding evidence log, uploading any attached photos to Storage. */
-    const findings = [];
-    for (const c of CATS) {
-      if (c.speed) continue;
-      for (let gi=0; gi<c.groups.length; gi++){
-        const g = c.groups[gi];
-        for (let ii=0; ii<g.items.length; ii++){
-          const key = c.num+"."+gi+"."+ii;
-          if (s.scores[key] !== "N") continue;
-          const it = g.items[ii];
-          const e = s.ev[key] || {};
-          let photoUrls = [];
-          if (cloud && (e.urls||[]).length){
-            const uploads = (e.urls||[]).filter(Boolean).map((url, pi)=>
-              cloud.uploadPhoto(url, "audits/"+id+"/"+key.replace(/\./g,"_")+"/"+pi+".jpg").catch(()=>null)
-            );
-            photoUrls = (await Promise.all(uploads)).filter(Boolean);
-          }
-          findings.push({key, category:c.num+" · "+c.name, risk:it[0], text:it[1],
-            note:e.note||"", capa:e.capa||"", repeat:!!e.repeat, photos:photoUrls});
-        }
-      }
-    }
-
     const rec = {branch:s.meta.branch, area: b?b.area:"North", stype:s.meta.stype, date:s.meta.date,
       cats, score: Math.round(T.score*10)/10, crit:this.criticalFails(),
       dev:{H:dev.d.H, M:dev.d.M, L:dev.d.L}, critical:this.criticalFails()>=5,
-      auditor:s.meta.auditor, mod:s.meta.mod, submittedAt:Date.now(), findings};
-
+      auditor:s.meta.auditor, submittedAt:Date.now()};
     try{
       const raw = localStorage.getItem(H.ARCHIVE_KEY);
       const all = raw ? (JSON.parse(raw)||[]) : [];
@@ -749,10 +787,13 @@ class Component extends DCLogic {
       localStorage.setItem(H.ARCHIVE_KEY, JSON.stringify(all));
       this.setState({live:all});
     }catch(e){}
-
-    if (cloud){
-      const res = await cloud.saveAudit(rec);
-      this.flash(res.ok ? "Submitted — synced to the portfolio dashboard." : "Submitted — saved on device, will sync once you're back online.");
+    const C = this.state.cloud;
+    if(C && this.state.cUser){
+      C.saveAudit(rec)
+        .then(()=>this.flash("Signed off and synced to the QSCV portfolio"))
+        .catch(()=>this.flash("Saved on this phone — will sync when signed in and online"));
+    }else{
+      this.flash("Saved on this phone only — sign in to share it with QSCV");
     }
   }
   componentDidUpdate(){ this.persist(); }
@@ -763,7 +804,7 @@ class Component extends DCLogic {
       try{
         const s = this.state;
         const evLight = {};
-        Object.keys(s.ev).forEach(k=>{ const v=s.ev[k]; evLight[k]={photos:v.photos||0,urls:(v.urls||[]).filter(Boolean),note:v.note||"",capa:v.capa||"",repeat:!!v.repeat}; });
+        Object.keys(s.ev).forEach(k=>{ const v=s.ev[k]; evLight[k]={photos:v.photos||0,note:v.note||"",capa:v.capa||"",repeat:!!v.repeat}; });
         localStorage.setItem(KEY, JSON.stringify({screen:s.screen,role:s.role,cat:s.cat,scores:s.scores,ev:evLight,open:s.open,meta:s.meta,speed:s.speed,daypart:s.daypart,signed:s.signed,dest:s.dest,savedAt:Date.now()}));
       }catch(e){}
     }, 400);
@@ -1008,7 +1049,7 @@ class Component extends DCLogic {
     const dash = (()=>{
       const H = s.hist;
       if(!H) return {avg:"—", line:"Loading branch history…"};
-      const all = H.RECORDS.concat(s.live||[]);
+      const all = H.RECORDS.concat(this.allRecords());
       const latest = {};
       all.forEach(r=>{ if(!latest[r.branch] || r.date>latest[r.branch].date) latest[r.branch]=r; });
       const rows = Object.keys(latest).map(k=>latest[k]);
@@ -1036,34 +1077,19 @@ class Component extends DCLogic {
         onPick: ev2=>{
           const f = ev2.target.files && ev2.target.files[0];
           if(!f) return;
+          if(this.photos){
+            this.photos.put(sheet.key, i, f).then(url=>{
+              const next = urls.slice(); next[i] = url;
+              this.patchEv(sheet.key, {urls: next, photos: next.filter(Boolean).length});
+              this.flash("Photo saved to this phone and attached to the finding.");
+            }).catch(()=>this.flash("Couldn't save that photo — storage may be full."));
+            return;
+          }
           const r = new FileReader();
           r.onload = () => {
-            /* Downscale + re-compress so a phone photo (often 3-8MB) fits comfortably
-               in the saved draft — several full-res photos would blow past localStorage's
-               ~5-10MB limit. 1000px on the long edge at JPEG q0.65 is plenty for a report. */
-            const img = new Image();
-            img.onload = () => {
-              const maxDim = 1000;
-              let w = img.width, h = img.height;
-              if (w > maxDim || h > maxDim){
-                const scale = maxDim / Math.max(w, h);
-                w = Math.round(w*scale); h = Math.round(h*scale);
-              }
-              const canvas = document.createElement("canvas");
-              canvas.width = w; canvas.height = h;
-              canvas.getContext("2d").drawImage(img, 0, 0, w, h);
-              let compressed;
-              try{ compressed = canvas.toDataURL("image/jpeg", 0.65); }catch(e){ compressed = r.result; }
-              const next = urls.slice(); next[i] = compressed;
-              this.patchEv(sheet.key, {urls: next, photos: next.filter(Boolean).length});
-              this.flash("Photo attached to this finding.");
-            };
-            img.onerror = () => {
-              const next = urls.slice(); next[i] = r.result;
-              this.patchEv(sheet.key, {urls: next, photos: next.filter(Boolean).length});
-              this.flash("Photo attached to this finding.");
-            };
-            img.src = r.result;
+            const next = urls.slice(); next[i] = r.result;
+            this.patchEv(sheet.key, {urls: next, photos: next.filter(Boolean).length});
+            this.flash("Photo attached to this finding.");
           };
           r.readAsDataURL(f);
           ev2.target.value = "";
@@ -1071,6 +1097,7 @@ class Component extends DCLogic {
         onRemove: ev2=>{
           ev2.preventDefault(); ev2.stopPropagation();
           const next = urls.slice(); next[i] = null;
+          if(this.photos) this.photos.remove(sheet.key, i);
           this.patchEv(sheet.key, {urls: next, photos: next.filter(Boolean).length});
         }
       };
@@ -1172,7 +1199,31 @@ class Component extends DCLogic {
       platformLabel: platform==="iOS" ? "iPhone 15 · 390 × 844" : "Android · 390 × 844",
       dashAvg: dash.avg, dashLine: dash.line,
       toast: s.toast,
-      reset: e2=>{ e2.preventDefault(); try{localStorage.removeItem(KEY);}catch(err){} this.setState({screen:"home",cat:null,scores:{},ev:{},open:{},speed:{},signed:{a:false,b:false},savedAt:null,sheet:null}); this.clearSig("a"); this.clearSig("b"); }
+
+      /* ---- cloud / identity ---- */
+      branchList: (s.branches || []).map(b=>({name:b.name, label:b.name+" · "+b.area})),
+      cloudLabel: s.cloud ? (({connecting:"Connecting",live:"Synced",offline:"Offline · queued","signed-out":"Local only",error:"Sync error"})[s.cStatus] || "Local only") : "Local only",
+      cloudColor: s.cStatus==="live" ? "var(--color-accent)" : s.cStatus==="error" ? "var(--color-accent-900)" : "var(--color-neutral-500)",
+      signedIn: !!s.cUser,
+      signedOut: !s.cUser,
+      authEmail: s.cUser ? s.cUser.email : "",
+      authName: (s.cProfile && s.cProfile.name) || (s.cUser ? s.cUser.email : ""),
+      authRole: (s.cProfile && s.cProfile.role === "manager") ? "Manager" : "Auditor",
+      email: s.email || "", pw: s.pw || "",
+      setEmail: e2=>this.setState({email:e2.target.value}),
+      setPw: e2=>this.setState({pw:e2.target.value}),
+      onSignIn: e2=>this.doSignIn(e2),
+      onSignOut: e2=>{ if(e2) e2.preventDefault(); if(s.cloud) s.cloud.signOutNow(); },
+      authErr: s.authErr || "",
+      hasAuthErr: !!s.authErr,
+      authBtnLabel: s.authBusy ? "Signing in…" : "Sign in",
+      syncNote: s.cUser
+        ? (s.cStatus==="offline"
+            ? "Working offline. Sign-offs are held on this phone and upload the moment you have signal."
+            : "Sign-offs upload to the shared QSCV portfolio as soon as you sign the audit.")
+        : "Audits are saving to this phone only. Sign in so QSCV sees them and other auditors' work rolls up beside yours.",
+      cloudCount: (s.cloudRows || []).length + " audits in the shared portfolio",
+      reset: e2=>{ e2.preventDefault(); try{localStorage.removeItem(KEY);}catch(err){} if(this.photos) this.photos.clearAll(); this.setState({screen:"home",cat:null,scores:{},ev:{},open:{},speed:{},signed:{a:false,b:false},savedAt:null,sheet:null}); this.clearSig("a"); this.clearSig("b"); }
     };
   }
   setMeta(k,v){ const meta=Object.assign({},this.state.meta); meta[k]=v; this.setState({meta}); }

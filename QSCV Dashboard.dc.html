@@ -11,6 +11,11 @@
 <link rel="stylesheet" href="_ds/industry-66f186c5-855f-4942-a2fc-ba3ddbeae0dd/styles.css">
 <script src="_ds/industry-66f186c5-855f-4942-a2fc-ba3ddbeae0dd/_ds_bundle.js"></script>
 <style>
+:root{
+--color-accent:#3f6b4a;--color-accent-2:#588f63;
+--color-accent-100:#edf4ee;--color-accent-200:#d3e6d6;--color-accent-300:#aecdb3;--color-accent-400:#83b08b;--color-accent-500:#588f63;--color-accent-600:#45744f;--color-accent-700:#2f5a3b;--color-accent-800:#204029;--color-accent-900:#14291a;
+--color-accent-2-100:#edf4ee;--color-accent-2-200:#d3e6d6;--color-accent-2-300:#aecdb3;--color-accent-2-400:#83b08b;--color-accent-2-500:#588f63;--color-accent-2-600:#45744f;--color-accent-2-700:#2f5a3b;--color-accent-2-800:#204029;--color-accent-2-900:#14291a;
+}
 body{margin:0;background:var(--color-bg)}
 a{color:var(--color-accent);text-decoration:none}
 a:hover{color:var(--color-accent-700)}
@@ -34,9 +39,46 @@ a:hover{color:var(--color-accent-700)}
 <button class="btn btn-secondary" style="font-size:12px;padding:6px 14px" onClick="{{ setNorth }}">North</button>
 <button class="btn btn-secondary" style="font-size:12px;padding:6px 14px" onClick="{{ setSouth }}">South</button>
 </div>
-<div style="font-size:11.5px;color:var(--color-neutral-600)">Showing <b style="font-weight:600">{{ areaLabel }}</b> · cycle ending {{ cycleLabel }} <a href="#" onClick="{{ prevCycle }}">◀ earlier</a> <a href="#" onClick="{{ nextCycle }}">later ▶</a></div>
+<div style="font-size:11.5px;color:var(--color-neutral-600)">Showing <b style="font-weight:600">{{ areaLabel }}</b> · cycle ending {{ cycleLabel }} <a href="#" onClick="{{ prevCycle }}" style="white-space:nowrap">◀ earlier</a> <a href="#" onClick="{{ nextCycle }}" style="white-space:nowrap">later ▶</a></div>
 </div>
 </div>
+
+<div class="blueprint" style="padding:14px 18px;margin-bottom:28px;display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap">
+<i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+<div style="display:flex;align-items:center;gap:10px;min-width:0">
+<span style="width:7px;height:7px;flex:none;background:{{ cloudColor }};display:block"></span>
+<div>
+<div style="font:600 9.5px/1 var(--font-body);letter-spacing:.12em;text-transform:uppercase;color:var(--color-accent-700)">Portfolio sync · {{ cloudLabel }}</div>
+<sc-if value="{{ signedIn }}" hint-placeholder-val="{{ false }}">
+<div style="font-size:12.5px;line-height:1.5;margin-top:4px">{{ authName }} · {{ authRole }} — reading every auditor's signed audits as they land.</div>
+</sc-if>
+<sc-if value="{{ signedOut }}" hint-placeholder-val="{{ true }}">
+<div style="font-size:12.5px;line-height:1.5;margin-top:4px">Sign in to see the whole portfolio. Signed out, this shows only what was audited on this device.</div>
+</sc-if>
+</div>
+</div>
+
+<sc-if value="{{ signedOut }}" hint-placeholder-val="{{ true }}">
+<div style="display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap">
+<div class="field" style="margin:0;flex:1 1 160px;min-width:0"><label>Email</label>
+<input class="input" type="email" autoComplete="username" placeholder="you@racks.com.ph" value="{{ email }}" onChange="{{ setEmail }}" style="width:100%;min-width:0">
+</div>
+<div class="field" style="margin:0;flex:1 1 120px;min-width:0"><label>Password</label>
+<input class="input" type="password" autoComplete="current-password" value="{{ pw }}" onChange="{{ setPw }}" style="width:100%;min-width:0">
+</div>
+<button class="btn btn-primary blueprint" style="padding:0 18px;min-height:38px;flex:none;white-space:nowrap" onClick="{{ onSignIn }}">
+<i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>{{ authBtnLabel }}
+</button>
+</div>
+</sc-if>
+<sc-if value="{{ signedIn }}" hint-placeholder-val="{{ false }}">
+<button class="btn btn-secondary" style="padding:0 16px;min-height:38px;flex:none" onClick="{{ onSignOut }}">Sign out</button>
+</sc-if>
+</div>
+
+<sc-if value="{{ hasAuthErr }}" hint-placeholder-val="{{ false }}">
+<div style="margin:-14px 0 24px;font-size:12px;line-height:1.5;color:var(--color-accent-900);border-left:2px solid var(--color-accent-900);padding-left:10px">{{ authErr }}</div>
+</sc-if>
 
 <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:28px">
 <div class="blueprint" style="padding:16px 18px">
@@ -82,7 +124,7 @@ a:hover{color:var(--color-accent-700)}
 <h2 style="font-size:20px;margin:0 0 4px">Branch league table</h2>
 <div style="font-size:12px;color:var(--color-neutral-600);margin-bottom:12px">Ranked by the cycle's weighted grade. Δ compares each branch with its own previous audit.</div>
 <table class="qd-t">
-<thead><tr><th style="width:34px">#</th><th>Branch</th><th>Area</th><th>Type</th><th>Last audit</th><th style="text-align:right">Grade</th><th>Band</th><th style="text-align:right">Δ</th><th style="text-align:right">Crit</th></tr></thead>
+<thead><tr><th style="width:34px">#</th><th>Branch</th><th>Area</th><th>Type</th><th>Last audit</th><th style="text-align:right">Grade</th><th>Band</th><th style="text-align:right">Δ</th><th style="text-align:right">Crit</th><th style="width:52px"></th></tr></thead>
 <tbody>
 <sc-for list="{{ leagueRows }}" as="r" hint-placeholder-count="14">
 <tr>
@@ -95,13 +137,59 @@ a:hover{color:var(--color-accent-700)}
 <td><span style="{{ r.bandStyle }}">{{ r.band }}</span></td>
 <td style="{{ r.deltaStyle }}">{{ r.delta }}</td>
 <td style="{{ r.critStyle }}">{{ r.crit }}</td>
+<td style="text-align:right">
+<sc-if value="{{ r.voidable }}" hint-placeholder-val="{{ false }}">
+<a href="#" onClick="{{ r.onVoid }}" style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap">Void</a>
+</sc-if>
+</td>
 </tr>
 </sc-for>
 </tbody>
 </table>
+<sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ false }}">
+<div style="font-size:12.5px;line-height:1.6;color:var(--color-neutral-700);margin-top:10px;max-width:70ch">{{ emptyLine }}</div>
+</sc-if>
+
+<sc-if value="{{ hasVoided }}" hint-placeholder-val="{{ false }}">
+<div style="margin-top:20px;border-top:1px solid var(--color-divider);padding-top:12px">
+<div style="font:600 9.5px/1 var(--font-body);letter-spacing:.12em;text-transform:uppercase;color:var(--color-neutral-600);margin-bottom:8px">Voided audits — struck from every figure above, kept on record</div>
+<div style="display:flex;flex-direction:column;gap:6px">
+<sc-for list="{{ voidedList }}" as="v" hint-placeholder-count="1">
+<div style="display:flex;gap:10px;align-items:baseline;font-size:12px;line-height:1.5;color:var(--color-neutral-700)">
+<span style="flex:1">{{ v.line }}</span>
+<span style="flex:none;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--color-neutral-500)">{{ v.by }}</span>
+<a href="#" onClick="{{ v.onRestore }}" style="flex:none;font-size:11px;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap">Restore</a>
+</div>
+</sc-for>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ voidOpen }}" hint-placeholder-val="{{ false }}">
+<div class="dialog-backdrop" style="position:fixed;inset:0;display:grid;place-items:center;z-index:40">
+<div class="dialog blueprint" style="max-width:440px;width:calc(100% - 48px);padding:24px;background:var(--color-bg);box-shadow:var(--shadow-lg)">
+<i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+<div class="dialog-title" style="font:600 22px/1.15 var(--font-heading);margin-bottom:6px">Void this audit</div>
+<div class="dialog-body" style="font-size:12.5px;line-height:1.6;color:var(--color-neutral-700)">
+<p style="margin:0 0 4px"><b style="font-weight:600">{{ voidBranch }}</b></p>
+<p style="margin:0 0 14px">It stops counting toward the grade, the portfolio average and the heatmap, and the branch reads as unaudited for this cycle. The record itself is kept, with your name and reason, so a disputed grade can be traced.</p>
+<div class="field" style="margin:0">
+<label>Reason</label>
+<textarea class="input" rows="3" placeholder="e.g. Duplicate submission — auditor re-ran the walk the same day" value="{{ voidReason }}" onChange="{{ setVoidReason }}" style="width:100%;min-width:0;resize:vertical"></textarea>
+</div>
+</div>
+<div class="dialog-actions" style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px">
+<button class="btn btn-secondary" style="padding:0 16px;min-height:38px" onClick="{{ cancelVoid }}">Cancel</button>
+<button class="btn btn-primary blueprint" style="padding:0 18px;min-height:38px;flex:none;white-space:nowrap" onClick="{{ confirmVoid }}">
+<i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>Void audit
+</button>
+</div>
+</div>
+</div>
+</sc-if>
 
 <h2 style="font-size:20px;margin:36px 0 4px">Category heatmap</h2>
-<div style="font-size:12px;color:var(--color-neutral-600);margin-bottom:12px">Each cell is the branch's score in that category this cycle. Deeper steel is weaker — read the columns to find a portfolio-wide problem.</div>
+<div style="font-size:12px;color:var(--color-neutral-600);margin-bottom:12px">Each cell is the branch's score in that category this cycle. Deeper green is weaker — read the columns to find a portfolio-wide problem.</div>
 <table class="qd-t">
 <thead><tr><th>Branch</th>
 <sc-for list="{{ catCols }}" as="c" hint-placeholder-count="9">
@@ -146,7 +234,9 @@ a:hover{color:var(--color-accent-700)}
 const BAND = s => s>=91?"Excellent":s>=86?"Very Good":s>=80?"Good":"Unsatisfactory";
 
 class Component extends DCLogic {
-  state = {H:null, area:"All", cycle:null};
+  state = {H:null, area:"All", cycle:null, cloud:null, cUser:null, cProfile:null,
+           cStatus:"connecting", cloudRows:[], email:"", pw:"", authErr:"", authBusy:false,
+           voidTarget:null, voidReason:""};
   componentDidMount(){
     import("./qscv-history.js").then(H=>{
       let live = [];
@@ -156,17 +246,25 @@ class Component extends DCLogic {
       }catch(e){}
       this.setState({H, live, cycle:H.WEEKS.length-1});
     });
-    /* Live subscription — every audit any auditor submits anywhere shows up here
-       automatically, no refresh needed. */
-    import("./qscv-cloud.js").then(cloud=>{
-      this._unsub = cloud.subscribeAudits(
-        records => this.setState({live: records}),
-        err => console.error("QSCV cloud sync error", err)
-      );
+    import("./qscv-cloud.js").then(C=>{
+      this.setState({cloud:C});
+      this._offAuth = C.onAuth(a=>this.setState({cUser:a.user, cProfile:a.profile}));
+      this._offStat = C.onStatus(s=>this.setState({cStatus:s.status}));
+      this._offAud  = C.onAudits(cloudRows=>this.setState({cloudRows}));
+      C.init().catch(()=>{});
     }).catch(()=>{});
   }
   componentWillUnmount(){
-    if (this._unsub) this._unsub();
+    ["_offAuth","_offStat","_offAud"].forEach(k=>{ if(this[k]) this[k](); });
+  }
+  doSignIn(e){
+    if(e) e.preventDefault();
+    const C = this.state.cloud;
+    if(!C) return;
+    this.setState({authBusy:true, authErr:""});
+    C.signIn(this.state.email, this.state.pw)
+      .then(()=>this.setState({authBusy:false, pw:"", authErr:""}))
+      .catch(err=>this.setState({authBusy:false, authErr: C.authMessage(err)}));
   }
   heatStyle(v, foot){
     const bg = v>=0.91?"var(--color-accent-100)":v>=0.86?"var(--color-accent-200)":v>=0.80?"var(--color-accent-400)":v>=0.70?"var(--color-accent-700)":"var(--color-accent-900)";
@@ -178,7 +276,12 @@ class Component extends DCLogic {
     if(!H) return {};
     const {BRANCHES, CATS, WEEKS, RECORDS} = H;
     const area = this.state.area, ci = this.state.cycle;
-    const live = (this.state.live||[]).filter(r=>r && r.branch && r.score!=null);
+    const C = this.state.cloud;
+    const localRows = (this.state.live||[]).filter(r=>r && r.branch && r.score!=null);
+    const cloudRows = (this.state.cloudRows||[]).filter(r=>r && r.branch && r.score!=null);
+    const merged = C ? C.mergeAudits(localRows, cloudRows) : localRows;
+    const voidedRows = merged.filter(r=>r.voided);
+    const live = merged.filter(r=>!r.voided);
     const all = RECORDS.concat(live);
     const cycleDate = WEEKS[ci];
     const extra = [];
@@ -228,7 +331,9 @@ class Component extends DCLogic {
         delta: d===null ? "—" : (d>=0?"+":"")+d.toFixed(1),
         deltaStyle: "text-align:right;font-variant-numeric:tabular-nums;color:"+(d===null?"var(--color-neutral-500)":d<-1.5?"var(--color-accent-900);font-weight:600":"var(--color-neutral-700)"),
         crit: r.cur.crit,
-        critStyle: "text-align:right;font-weight:600;color:"+(r.cur.crit>=5?"var(--color-bg);background:var(--color-accent-900)":"var(--color-neutral-700)")
+        critStyle: "text-align:right;font-weight:600;color:"+(r.cur.crit>=5?"var(--color-bg);background:var(--color-accent-900)":"var(--color-neutral-700)"),
+        voidable: !!(C && C.isManager && C.isManager() && r.cur.id),
+        onVoid: e2=>{ e2.preventDefault(); this.setState({voidTarget:{id:r.cur.id, branch:r.b.name, date:r.cur.date}, voidReason:""}); }
       };
     });
     overdue.forEach(r=>{
@@ -238,7 +343,7 @@ class Component extends DCLogic {
         score:"—", band:"Not audited",
         bandStyle:"font-size:11px;letter-spacing:.06em;text-transform:uppercase;padding:3px 8px;border:1px dashed var(--color-divider);color:var(--color-neutral-600)",
         delta:"—", deltaStyle:"text-align:right;color:var(--color-neutral-500)",
-        crit:"—", critStyle:"text-align:right;color:var(--color-neutral-500)"});
+        crit:"—", critStyle:"text-align:right;color:var(--color-neutral-500)", voidable:false});
     });
 
     const watch = scored.filter(r=>r.cur.crit>=5 || r.cur.score<80)
@@ -265,6 +370,30 @@ class Component extends DCLogic {
       setAll:()=>this.setState({area:"All"}), setNorth:()=>this.setState({area:"North"}), setSouth:()=>this.setState({area:"South"}),
       prevCycle:e=>{e.preventDefault(); this.setState({cycle:Math.max(0,ci-1)});},
       nextCycle:e=>{e.preventDefault(); this.setState({cycle:Math.min(WEEKS.length-1,ci+1)});},
+      canVoid: !!(C && C.isManager && C.isManager()),
+      voidedList: voidedRows.map(r=>({
+        line: r.branch+" · "+r.date+" · "+(r.auditor||"—")+" — "+(r.voidReason||"no reason given"),
+        by: r.voidedBy ? "voided by "+r.voidedBy : "voided",
+        onRestore: e2=>{ e2.preventDefault(); if(C && r.id) C.unvoidAudit(r.id).catch(err=>this.setState({authErr:err.message})); }
+      })),
+      hasVoided: voidedRows.length>0,
+      voidOpen: !!this.state.voidTarget,
+      voidBranch: this.state.voidTarget ? this.state.voidTarget.branch+" · "+this.state.voidTarget.date : "",
+      voidReason: this.state.voidReason || "",
+      setVoidReason: e2=>this.setState({voidReason:e2.target.value}),
+      cancelVoid: e2=>{ if(e2) e2.preventDefault(); this.setState({voidTarget:null, voidReason:""}); },
+      confirmVoid: e2=>{
+        if(e2) e2.preventDefault();
+        const t = this.state.voidTarget;
+        if(!t || !C) return;
+        C.voidAudit(t.id, this.state.voidReason)
+          .then(()=>this.setState({voidTarget:null, voidReason:""}))
+          .catch(err=>this.setState({voidTarget:null, voidReason:"", authErr:err.message}));
+      },
+      isEmpty: scored.length === 0,
+      emptyLine: this.state.cUser
+        ? "No audits signed off in this cycle yet. The moment an auditor signs one, it appears here — no refresh needed."
+        : "Nothing to show yet. Sign in above, then this fills as auditors sign off their audits.",
       avgScore: scored.length ? avg.toFixed(1) : "—",
       avgBand: scored.length ? BAND(avg) : "no audits in this cycle",
       avgDelta: dAvg===null ? "no prior cycle" : (dAvg>=0?"+":"")+dAvg.toFixed(1),
@@ -280,8 +409,23 @@ class Component extends DCLogic {
       heatRows,
       catFooter: CATS.map(c=>({label: catAvg[c.num]==null?"—":Math.round(catAvg[c.num]*100), style:this.heatStyle(catAvg[c.num]==null?1:catAvg[c.num], true)})),
       sourceLine: live.length
-        ? live.length+" real audit"+(live.length===1?"":"s")+" synced from the field, plus seeded sample history for branches not yet covered"
-        : "Seeded sample history — no audits submitted yet. Real records appear here live as auditors sign off in the field."
+        ? live.length+" audit"+(live.length===1?"":"s")+" — "+cloudRows.length+" synced from auditors, "+localRows.length+" on this device. Branches with no audit yet are shown as unaudited, never estimated."
+        : "No audits yet. Every figure on this page comes from a signed-off audit — nothing is sampled or estimated.",
+
+      /* ---- cloud / identity ---- */
+      cloudLabel: ({connecting:"Connecting",live:"Live",offline:"Offline · cached","signed-out":"Not signed in",error:"Sync error"})[this.state.cStatus] || "Local only",
+      cloudColor: this.state.cStatus==="live" ? "var(--color-accent)" : this.state.cStatus==="error" ? "var(--color-accent-900)" : "var(--color-neutral-500)",
+      signedIn: !!this.state.cUser,
+      signedOut: !this.state.cUser,
+      authName: (this.state.cProfile && this.state.cProfile.name) || (this.state.cUser ? this.state.cUser.email : ""),
+      authRole: (this.state.cProfile && this.state.cProfile.role === "manager") ? "Manager" : "Auditor",
+      email: this.state.email || "", pw: this.state.pw || "",
+      setEmail: e2=>this.setState({email:e2.target.value}),
+      setPw: e2=>this.setState({pw:e2.target.value}),
+      onSignIn: e2=>this.doSignIn(e2),
+      onSignOut: e2=>{ if(e2) e2.preventDefault(); if(this.state.cloud) this.state.cloud.signOutNow(); },
+      authErr: this.state.authErr || "", hasAuthErr: !!this.state.authErr,
+      authBtnLabel: this.state.authBusy ? "Signing in…" : "Sign in"
     };
   }
 }

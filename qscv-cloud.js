@@ -1,81 +1,215 @@
-/* QSCV — Firebase backend
-   This is the ONLY file with your Firebase project's keys in it.
-   Get these from: Firebase console -> Project settings (gear icon) -> General
-   -> "Your apps" -> click the web app (</>) -> SDK setup and configuration -> Config
-*/
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
-import {
-  getFirestore, collection, doc, setDoc, onSnapshot, serverTimestamp
-} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import {
-  getStorage, ref, uploadString, getDownloadURL
-} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-storage.js";
+/* QSCV cloud layer — Firebase Auth + Firestore, offline-first.
+   Local storage stays the mirror of record on the device; Firestore is the shared
+   truth across auditors. Writes queue while offline and flush on reconnect. */
 
-const firebaseConfig = {
-  apiKey: "AIzaSyB26QxGuFVj7Ov4rnPKOaw3eL7xsnMNQ0Q",
+const CDN = "https://www.gstatic.com/firebasejs/10.12.2/";
+
+export const CONFIG = {
+  apiKey: "AIzaSyB26QxGuFVj7Ov4rnPKOaw3eL7xsnMNQOQ",
   authDomain: "racks-qscv-audit.firebaseapp.com",
   projectId: "racks-qscv-audit",
   storageBucket: "racks-qscv-audit.firebasestorage.app",
   messagingSenderId: "197029007787",
-  appId: "1:197029007787:web:482e9708b02c514ee7c2ee"
+  appId: "1:197029007787:web:482e9708b02c514ee7c2ee",
+  measurementId: "G-M556K23K3S"
 };
 
-const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app);
-export const storage = getStorage(app);
+/* Fallback branch list — used until config/branches exists in Firestore. */
+export const FALLBACK_BRANCHES = [
+  {name:"SM Pampanga", area:"North"}, {name:"SM North EDSA", area:"North"},
+  {name:"Trinoma", area:"North"}, {name:"Timog", area:"North"},
+  {name:"Greenhills", area:"North"}, {name:"Tiendesitas", area:"North"},
+  {name:"G2", area:"South"}, {name:"Magallanes", area:"South"},
+  {name:"NAIA T3", area:"South"}, {name:"Ermita", area:"South"},
+  {name:"MOA", area:"South"}, {name:"Southmall", area:"South"},
+  {name:"Sta. Rosa", area:"South"}, {name:"Festival", area:"South"}
+];
 
-const PENDING_KEY = "qscv-pending-sync-v1";
+let M = null;            // loaded firebase modules
+let app, auth, db;
+let user = null;
+let profile = null;      // users/{uid} doc: {name, role, area}
+let audits = [];         // shared audits, newest first
+let status = "connecting";
+let statusNote = "";
 
-function docIdFor(rec){
-  return (rec.branch + "_" + rec.date).replace(/[^a-zA-Z0-9_-]/g, "_");
-}
+const subs = {auth:new Set(), audits:new Set(), status:new Set(), branches:new Set()};
+let branches = FALLBACK_BRANCHES;
 
-/* Upload one photo (as a data: URL, straight from FileReader) to Firebase Storage.
-   Returns its public download URL. */
-export async function uploadPhoto(dataUrl, path){
-  const r = ref(storage, path);
-  await uploadString(r, dataUrl, "data_url");
-  return getDownloadURL(r);
-}
+const emit = (k, v) => subs[k].forEach(f => { try{ f(v); }catch(e){} });
+const setStatus = (s, note) => { status = s; statusNote = note || ""; emit("status", {status, note:statusNote}); };
 
-/* Write one finished audit to the shared "audits" collection.
-   Same branch+date upserts the existing record, matching the old local-archive behavior.
-   If the device is offline, the record is queued locally and retried later via flushPending(). */
-export async function saveAudit(rec){
-  const id = docIdFor(rec);
-  try{
-    await setDoc(doc(db, "audits", id), Object.assign({}, rec, {syncedAt: serverTimestamp()}));
-    return {ok:true};
-  }catch(err){
+export const getStatus  = () => ({status, note:statusNote});
+export const getUser    = () => user;
+export const getProfile = () => profile;
+export const getAudits  = () => audits;
+export const getBranches= () => branches;
+export const isManager  = () => !!profile && profile.role === "manager";
+
+export function onAuth(cb){ subs.auth.add(cb); cb({user, profile}); return () => subs.auth.delete(cb); }
+export function onAudits(cb){ subs.audits.add(cb); cb(audits); return () => subs.audits.delete(cb); }
+export function onStatus(cb){ subs.status.add(cb); cb({status, note:statusNote}); return () => subs.status.delete(cb); }
+export function onBranches(cb){ subs.branches.add(cb); cb(branches); return () => subs.branches.delete(cb); }
+
+let booting = null;
+export function init(){
+  if(booting) return booting;
+  booting = (async () => {
+    const [a, b, c] = await Promise.all([
+      import(CDN + "firebase-app.js"),
+      import(CDN + "firebase-auth.js"),
+      import(CDN + "firebase-firestore.js")
+    ]);
+    M = Object.assign({}, a, b, c);
+    app = M.initializeApp(CONFIG);
+    auth = M.getAuth(app);
     try{
-      const raw = localStorage.getItem(PENDING_KEY);
-      const all = raw ? JSON.parse(raw) : [];
-      all.push(rec);
-      localStorage.setItem(PENDING_KEY, JSON.stringify(all));
-    }catch(e){}
-    return {ok:false, error:err};
-  }
+      db = M.initializeFirestore(app, {
+        localCache: M.persistentLocalCache({tabManager: M.persistentMultipleTabManager()})
+      });
+    }catch(e){
+      db = M.getFirestore(app);   // another tab already owns the cache
+    }
+
+    M.onAuthStateChanged(auth, async u => {
+      user = u ? {uid:u.uid, email:u.email} : null;
+      profile = null;
+      if(u){
+        try{
+          const snap = await M.getDoc(M.doc(db, "users", u.uid));
+          profile = snap.exists() ? snap.data() : {name:u.email, role:"auditor"};
+        }catch(e){ profile = {name:u.email, role:"auditor"}; }
+        setStatus("live", "");
+        watchAudits();
+        watchBranches();
+      }else{
+        stopWatch();
+        setStatus("signed-out", "");
+      }
+      emit("auth", {user, profile});
+    });
+    return true;
+  })().catch(err => {
+    setStatus("error", err && err.message ? err.message : "Firebase failed to load");
+    throw err;
+  });
+  return booting;
 }
 
-/* Call on app load — retries any audits that failed to sync earlier (e.g. no signal in-store). */
-export async function flushPending(){
-  let all = [];
-  try{ const raw = localStorage.getItem(PENDING_KEY); all = raw ? JSON.parse(raw) : []; }catch(e){ return; }
-  if(!all.length) return;
-  const remaining = [];
-  for(const rec of all){
-    const res = await saveAudit(rec);
-    if(!res.ok) remaining.push(rec);
-  }
-  try{ localStorage.setItem(PENDING_KEY, JSON.stringify(remaining)); }catch(e){}
+let unAudits = null, unBranches = null;
+function watchAudits(){
+  if(unAudits) return;
+  const q = M.query(M.collection(db, "audits"), M.orderBy("submittedAt", "desc"), M.limit(600));
+  unAudits = M.onSnapshot(q,
+    snap => {
+      audits = snap.docs.map(d => Object.assign({id:d.id}, d.data()));
+      emit("audits", audits);
+      setStatus(snap.metadata.fromCache ? "offline" : "live",
+                snap.metadata.hasPendingWrites ? "queued" : "");
+    },
+    err => setStatus("error", err.message)
+  );
+}
+function watchBranches(){
+  if(unBranches) return;
+  unBranches = M.onSnapshot(M.doc(db, "config", "branches"),
+    snap => {
+      const d = snap.data();
+      if(d && Array.isArray(d.list) && d.list.length){ branches = d.list; emit("branches", branches); }
+    },
+    () => {}
+  );
+}
+function stopWatch(){
+  if(unAudits){ unAudits(); unAudits = null; }
+  if(unBranches){ unBranches(); unBranches = null; }
+  audits = []; emit("audits", audits);
 }
 
-/* Live-subscribe to every audit in the portfolio. onData fires immediately, then again
-   on every create/update from any auditor's device — this is what makes the dashboard live. */
-export function subscribeAudits(onData, onError){
-  return onSnapshot(collection(db, "audits"), snap=>{
-    const records = [];
-    snap.forEach(d=> records.push(d.data()));
-    onData(records);
-  }, onError);
+export async function signIn(email, password){
+  await init();
+  const cred = await M.signInWithEmailAndPassword(auth, String(email||"").trim(), String(password||""));
+  return cred.user;
 }
+export async function signOutNow(){
+  await init();
+  return M.signOut(auth);
+}
+export async function resetPassword(email){
+  await init();
+  return M.sendPasswordResetEmail(auth, String(email||"").trim());
+}
+
+const slug = s => String(s||"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
+
+/* One document per auditor per branch per audit date, so two auditors on the
+   same branch in one cycle both persist and the dashboard can show the latest. */
+export async function saveAudit(rec){
+  await init();
+  if(!user) throw new Error("Sign in before signing off an audit.");
+  const id = [rec.date, slug(rec.branch), user.uid.slice(0,6)].join("_");
+  const doc = Object.assign({}, rec, {
+    auditorUid: user.uid,
+    auditorEmail: user.email,
+    auditor: rec.auditor || (profile && profile.name) || user.email,
+    submittedAt: rec.submittedAt || Date.now(),
+    updatedAt: Date.now()
+  });
+  await M.setDoc(M.doc(db, "audits", id), doc, {merge:true});
+  return id;
+}
+
+/* Managers void rather than delete: an audit is a compliance record, so a bad
+   one is struck from scoring while staying auditable — who voided it and why. */
+export async function voidAudit(auditId, reason){
+  await init();
+  if(!user) throw new Error("Sign in first.");
+  if(!isManager()) throw new Error("Only a QSCV manager can void an audit.");
+  await M.updateDoc(M.doc(db, "audits", auditId), {
+    voided: true,
+    voidReason: String(reason||"").trim() || "No reason given",
+    voidedBy: (profile && profile.name) || user.email,
+    voidedByUid: user.uid,
+    voidedAt: Date.now()
+  });
+}
+
+export async function unvoidAudit(auditId){
+  await init();
+  if(!isManager()) throw new Error("Only a QSCV manager can restore an audit.");
+  await M.updateDoc(M.doc(db, "audits", auditId), {
+    voided: false, voidReason: null, voidedBy: null, voidedByUid: null, voidedAt: null
+  });
+}
+
+export const isVoid = r => !!(r && r.voided);
+export const liveOnly = rows => (rows||[]).filter(r => !isVoid(r));
+
+/* Merge seeded/local records with cloud records. Cloud wins on the same
+   branch + date + auditor; the newest submittedAt wins for the dashboard. */
+export function mergeAudits(local, cloud){
+  const key = r => [r.date, r.branch, r.auditorUid || r.auditor || ""].join("|");
+  const out = new Map();
+  (local||[]).forEach(r => out.set(key(r), r));
+  (cloud||[]).forEach(r => out.set(key(r), r));
+  return Array.from(out.values()).sort((x,y) => (y.submittedAt||0) - (x.submittedAt||0));
+}
+
+/* Plain-language sign-in errors, shared by the app and the dashboard. */
+export function authMessage(err){
+  const c = (err && err.code) || "";
+  if(c.indexOf("configuration-not-found")>=0 || c.indexOf("operation-not-allowed")>=0)
+    return "Email sign-in isn't switched on yet for this project. In the Firebase console: Authentication → Sign-in method → enable Email/Password.";
+  if(c.indexOf("invalid-credential")>=0 || c.indexOf("wrong-password")>=0) return "Wrong email or password.";
+  if(c.indexOf("invalid-email")>=0) return "That doesn't look like a valid email address.";
+  if(c.indexOf("user-not-found")>=0) return "No account for that email — ask your manager to create one.";
+  if(c.indexOf("user-disabled")>=0) return "That account has been disabled.";
+  if(c.indexOf("too-many-requests")>=0) return "Too many attempts. Wait a minute and try again.";
+  if(c.indexOf("network")>=0) return "No connection — you can still audit offline.";
+  return "Sign-in failed. " + ((err && err.message) || "");
+}
+
+export const STATUS_LABEL = {
+  connecting:"Connecting", live:"Synced", offline:"Offline · queued",
+  "signed-out":"Not signed in", error:"Sync error"
+};
