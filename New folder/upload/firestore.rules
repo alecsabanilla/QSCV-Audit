@@ -1,0 +1,37 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function isManager() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'manager';
+    }
+
+    // Auditor profiles. Each auditor reads/edits their own name; only a
+    // manager (or the console) may set roles.
+    match /users/{uid} {
+      allow read: if signedIn();
+      allow create, update: if request.auth.uid == uid
+        && !( 'role' in request.resource.data.diff(resource.data).affectedKeys() );
+      allow write: if isManager();
+    }
+
+    // Audits. Any signed-in auditor may submit and read the portfolio;
+    // an audit can only be written or edited by the auditor who owns it.
+    match /audits/{auditId} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.auditorUid == request.auth.uid;
+      allow update: if signedIn()
+        && ( resource.data.auditorUid == request.auth.uid || isManager() );
+      allow delete: if isManager();
+    }
+
+    // Branch list and other shared config — everyone reads, managers edit.
+    match /config/{doc} {
+      allow read: if signedIn();
+      allow write: if isManager();
+    }
+  }
+}
