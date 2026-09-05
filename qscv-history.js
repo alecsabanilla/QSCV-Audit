@@ -32,10 +32,12 @@ export const CATS = [
   {num:"IX",   short:"Records",          weight:10}
 ];
 
-/* Six weekly cycles ending 2026-08-31 (most recent last). */
+/* Eight weekly cycles, the newest ending today. Rolling rather than fixed —
+   a hardcoded end date silently hides every audit signed off after it. */
 export const WEEKS = (() => {
-  const out = [], end = Date.UTC(2026, 7, 31);
-  for (let i = 5; i >= 0; i--) out.push(new Date(end - i * 7 * 864e5).toISOString().slice(0, 10));
+  const out = [], now = new Date();
+  const end = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+  for (let i = 7; i >= 0; i--) out.push(new Date(end - i * 7 * 864e5).toISOString().slice(0, 10));
   return out;
 })();
 

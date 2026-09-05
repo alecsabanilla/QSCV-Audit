@@ -236,6 +236,7 @@ const BAND = s => s>=91?"Excellent":s>=86?"Very Good":s>=80?"Good":"Unsatisfacto
 class Component extends DCLogic {
   state = {H:null, area:"All", cycle:null, cloud:null, cUser:null, cProfile:null,
            cStatus:"connecting", cloudRows:[], email:"", pw:"", authErr:"", authBusy:false,
+           cycle:0,
            voidTarget:null, voidReason:""};
   componentDidMount(){
     import("./qscv-history.js").then(H=>{
@@ -244,7 +245,7 @@ class Component extends DCLogic {
         const raw = localStorage.getItem(H.ARCHIVE_KEY);
         if(raw) live = JSON.parse(raw) || [];
       }catch(e){}
-      this.setState({H, live, cycle:H.WEEKS.length-1});
+      this.setState({H, live, cycle:0});
     });
     import("./qscv-cloud.js").then(C=>{
       this.setState({cloud:C});
@@ -275,7 +276,7 @@ class Component extends DCLogic {
     const H = this.state.H;
     if(!H) return {};
     const {BRANCHES, CATS, WEEKS, RECORDS} = H;
-    const area = this.state.area, ci = this.state.cycle;
+    const area = this.state.area;
     const C = this.state.cloud;
     const localRows = (this.state.live||[]).filter(r=>r && r.branch && r.score!=null);
     const cloudRows = (this.state.cloudRows||[]).filter(r=>r && r.branch && r.score!=null);
@@ -283,7 +284,15 @@ class Component extends DCLogic {
     const voidedRows = merged.filter(r=>r.voided);
     const live = merged.filter(r=>!r.voided);
     const all = RECORDS.concat(live);
-    const cycleDate = WEEKS[ci];
+    /* Cycles are anchored to the newest record, not to a fixed calendar, so an
+       audit signed off ahead of the cadence still lands in the current cycle. */
+    const newest = all.reduce((m,r)=>(r.date>m?r.date:m), "");
+    const WK = (newest && newest > WEEKS[WEEKS.length-1]) ? WEEKS.concat([newest]) : WEEKS;
+    /* state.cycle counts back from the newest cycle, so it stays correct when a
+       later audit arrives and extends the list. */
+    const back = Math.min(this.state.cycle || 0, WK.length-1);
+    const ci = WK.length - 1 - back;
+    const cycleDate = WK[ci];
     const extra = [];
     live.forEach(r=>{
       if(BRANCHES.some(b=>b.name===r.branch) || extra.some(b=>b.name===r.branch)) return;
@@ -368,8 +377,8 @@ class Component extends DCLogic {
       areaLabel: area==="All" ? "all "+branches.length+" branches" : area+" · "+branches.length+" branches",
       cycleLabel: cycleDate,
       setAll:()=>this.setState({area:"All"}), setNorth:()=>this.setState({area:"North"}), setSouth:()=>this.setState({area:"South"}),
-      prevCycle:e=>{e.preventDefault(); this.setState({cycle:Math.max(0,ci-1)});},
-      nextCycle:e=>{e.preventDefault(); this.setState({cycle:Math.min(WEEKS.length-1,ci+1)});},
+      prevCycle:e=>{e.preventDefault(); this.setState({cycle:Math.min(WK.length-1, back+1)});},
+      nextCycle:e=>{e.preventDefault(); this.setState({cycle:Math.max(0, back-1)});},
       canVoid: !!(C && C.isManager && C.isManager()),
       voidedList: voidedRows.map(r=>({
         line: r.branch+" · "+r.date+" · "+(r.auditor||"—")+" — "+(r.voidReason||"no reason given"),
@@ -397,6 +406,7 @@ class Component extends DCLogic {
       avgScore: scored.length ? avg.toFixed(1) : "—",
       avgBand: scored.length ? BAND(avg) : "no audits in this cycle",
       avgDelta: dAvg===null ? "no prior cycle" : (dAvg>=0?"+":"")+dAvg.toFixed(1),
+      cycleCount: (WK.length - back)+" of "+WK.length,
       coverage: onTime+" / "+branches.length,
       overdueLine: overdue.length ? overdue.length+" overdue: "+overdue.map(r=>r.b.name).join(", ") : "every branch audited on cadence",
       critCount: watch.filter(r=>true).length ? String(scored.filter(r=>r.cur.crit>=5).length) : "0",
