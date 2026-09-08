@@ -451,6 +451,20 @@ a:hover{color:var(--color-accent-700)}
 </div>
 </div>
 <div style="font-size:11.5px;line-height:1.55;color:var(--color-neutral-600)">{{ exportNote }}</div>
+<div class="blueprint" style="padding:14px;display:flex;flex-direction:column;gap:10px">
+<i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+<div style="font:600 9.5px/1 var(--font-body);letter-spacing:.14em;text-transform:uppercase;color:var(--color-accent-700)">Email the report</div>
+<div style="display:flex;justify-content:space-between;gap:10px;font-size:12px;padding-bottom:2px;border-bottom:1px solid var(--color-divider)"><span style="color:var(--color-neutral-700)">Recipients</span><span style="text-align:right;color:var(--color-neutral-900)">{{ sendTo }}</span></div>
+<div style="font-size:11.5px;line-height:1.55;color:var(--color-neutral-600)">{{ sendPhotoNote }}</div>
+<button class="btn btn-primary" style="width:100%;min-height:46px" disabled="{{ sendBusy }}" onClick="{{ sendReport }}">{{ sendLabel }}</button>
+<div style="font-size:11px;color:var(--color-neutral-600)">{{ sendState }}</div>
+</div>
+<div class="blueprint" style="padding:14px;display:flex;flex-direction:column;gap:10px">
+<i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+<div style="font:600 9.5px/1 var(--font-body);letter-spacing:.14em;text-transform:uppercase;color:var(--color-accent-700)">Next branch</div>
+<div style="font-size:12px;line-height:1.55;color:var(--color-neutral-700)">This audit is filed. Clear the form to start the next branch — scores, findings, photos and signatures are wiped from this phone; the submitted record stays in the portfolio.</div>
+<button class="btn btn-secondary" style="width:100%;min-height:44px" onClick="{{ startNew }}">Start a new audit</button>
+</div>
 </div>
 </sc-if>
 
@@ -483,13 +497,15 @@ a:hover{color:var(--color-accent-700)}
 <div style="font-size:11px;color:var(--color-neutral-700);margin-bottom:6px">Photo evidence — {{ sheetPhotoCount }}</div>
 <div style="display:flex;gap:8px">
 <sc-for list="{{ sheetPhotos }}" as="p" hint-placeholder-count="3">
-<label style="{{ p.style }}">
+<div style="{{ p.style }}">
+<label style="position:absolute;inset:0;display:grid;place-items:center;cursor:pointer">
 <input type="file" accept="image/*" style="position:absolute;width:1px;height:1px;opacity:0" onChange="{{ p.onPick }}">
 <span>{{ p.label }}</span>
-<sc-if value="{{ p.hasPhoto }}">
-<button style="position:absolute;top:3px;right:3px;width:20px;height:20px;padding:0;border:1px solid var(--color-bg);background:var(--color-accent-900);color:var(--color-bg);font-size:10px;line-height:1;cursor:pointer;border-radius:0" onClick="{{ p.onRemove }}">✕</button>
-</sc-if>
 </label>
+<sc-if value="{{ p.hasPhoto }}">
+<button type="button" aria-label="Remove this photo" style="position:absolute;top:0;right:0;width:28px;height:28px;padding:0;border:1px solid var(--color-bg);background:var(--color-accent-900);color:var(--color-bg);font-size:12px;line-height:1;cursor:pointer;border-radius:0;z-index:2" onClick="{{ p.onRemove }}">✕</button>
+</sc-if>
+</div>
 </sc-for>
 </div>
 </div>
@@ -712,6 +728,7 @@ class Component extends DCLogic {
       meta:{branch:"SM North EDSA", date:"2026-09-01", time:"11:30", auditor:"A. Sabanilla", mod:"J. Cruz", stype:"Mall", highlights:""},
       speed:{}, daypart:"Lunch", timing:null, clock:0,
       signed:{a:false,b:false}, dest:"pdf", toast:null, savedAt:null,
+      mailBusy:false, mailProgress:"", mailSentAt:null, mailWarned:false, mailResult:null, mailReady:false,
       cloud:null, cUser:null, cProfile:null, cStatus:"connecting", cNote:"",
       cloudRows:[], branches:[], email:"", pw:"", authErr:"", authBusy:false
     };
@@ -728,6 +745,7 @@ class Component extends DCLogic {
       try{ const raw2 = localStorage.getItem(H.ARCHIVE_KEY); if(raw2) live = JSON.parse(raw2)||[]; }catch(e){}
       this.setState({hist:H, live});
     }).catch(()=>{});
+    import("./qscv-mail.js").then(Ma=>{ this.mail = Ma; this.setState({mailReady:true}); }).catch(()=>{});
     import("./qscv-photos.js").then(P=>{
       this.photos = P;
       return P.loadAll().then(map=>{
@@ -780,6 +798,7 @@ class Component extends DCLogic {
     const dev = this.deviations();
     const rec = {branch:s.meta.branch, area: b?b.area:"North", stype:s.meta.stype, date:s.meta.date,
       cats, score: Math.round(T.score*10)/10, crit:this.criticalFails(),
+      grade: this.grade(T.weightSeen ? T.score / T.weightSeen * 100 : 0, this.criticalFails()).name,
       dev:{H:dev.d.H, M:dev.d.M, L:dev.d.L}, critical:this.criticalFails()>=5,
       auditor:s.meta.auditor, submittedAt:Date.now()};
     try{
@@ -798,6 +817,69 @@ class Component extends DCLogic {
     }else{
       this.flash("Saved on this phone only — sign in to share it with QSCV");
     }
+  }
+  /* Every scored-N finding with its evidence, for the report email. */
+  findingsList(){
+    const out = [];
+    CATS.forEach(c=>{ if(c.speed) return; c.groups.forEach((g,gi)=>g.items.forEach((it,ii)=>{
+      const key = c.num+"."+gi+"."+ii;
+      if(this.state.scores[key] !== "N") return;
+      const e = this.ev(key);
+      out.push({key, cat:c.name, item:it[1], severity:it[0], note:e.note||"", urls:(e.urls||[]).filter(Boolean)});
+    }));});
+    return out;
+  }
+  /* Hand the report to the send queue. Photos upload to Storage first so the
+     recipients see evidence without the auditor's phone being involved. */
+  sendReport(){
+    const s = this.state;
+    if(s.mailBusy) return;
+    if(s.mailSentAt && !s.mailWarned){
+      this.setState({mailWarned:true});
+      this.flash("This report was already sent. Tap Send again to send a second copy.");
+      return;
+    }
+    if(!s.cUser){ this.flash("Sign in first — the report is sent from the QSCV mailbox, not this phone."); return; }
+    const T = this.totals();
+    const dev = this.deviations();
+    const b = (s.branches||[]).filter(x=>x.name===s.meta.branch)[0]
+      || (s.hist ? s.hist.BRANCHES.filter(x=>x.name===s.meta.branch)[0] : null);
+    const rec = {
+      branch:s.meta.branch, area: b?b.area:"", stype:s.meta.stype, date:s.meta.date,
+      score: Math.round(T.score*10)/10, crit:this.criticalFails(),
+      grade: this.grade(T.weightSeen ? T.score / T.weightSeen * 100 : 0, this.criticalFails()).name,
+      dev:{H:dev.d.H, M:dev.d.M, L:dev.d.L}, critical:this.criticalFails()>=5,
+      auditor:s.meta.auditor
+    };
+    this.setState({mailBusy:true, mailProgress:"Preparing"});
+    import("./qscv-mail.js").then(Mail=>
+      Mail.sendReport(rec, this.findingsList(), {
+        branchRec: b,
+        onProgress:(n,total)=>this.setState({mailProgress: total ? "Uploading photo "+Math.min(n+1,total)+" of "+total : "Queueing"})
+      })
+    ).then(res=>{
+      this.setState({mailBusy:false, mailProgress:"", mailSentAt:Date.now(), mailWarned:false, mailResult:res});
+      this.flash(res.warning || ("Report queued to "+(res.to.length + res.cc.length)+" recipients."));
+    }).catch(err=>{
+      this.setState({mailBusy:false, mailProgress:""});
+      this.flash("Couldn't queue the report — " + ((err && err.message) || "try again on a better connection."));
+    });
+  }
+  /* Clear the finished audit so the next one starts from a blank form.
+     The submitted record stays in the archive / cloud; only the working draft is wiped. */
+  startNew(){
+    try{ localStorage.removeItem(KEY); }catch(e){}
+    if(this.photos) this.photos.clearAll();
+    const m = this.state.meta;
+    const today = new Date().toISOString().slice(0,10);
+    this.setState({
+      screen:"home", cat:null, scores:{}, ev:{}, open:{}, sheet:null,
+      speed:{}, daypart:"Lunch", timing:null, clock:0,
+      signed:{a:false,b:false}, dest:"pdf", savedAt:null,
+      mailBusy:false, mailProgress:"", mailSentAt:null, mailWarned:false, mailResult:null,
+      meta:{branch:"", date:today, time:"", auditor:m.auditor||"", mod:"", stype:m.stype||"Mall", highlights:""}
+    });
+    this.flash("New blank audit started — previous audit is filed in the portfolio.");
   }
   componentDidUpdate(){ this.persist(); }
   persist(){
@@ -1075,8 +1157,8 @@ class Component extends DCLogic {
         : filled ? "repeating-linear-gradient(45deg, var(--color-accent-200) 0 6px, var(--color-accent-300) 6px 12px)" : "transparent";
       return {
         label: url ? "" : filled ? "SAVED "+(i+1) : "+ Photo",
-        hasPhoto: !!url,
-        style:"position:relative;flex:1;height:66px;display:grid;place-items:center;border:1px solid "+(filled?"var(--color-accent-600)":"var(--color-divider)")+";background:"+bg+";color:"+(filled?"var(--color-accent-900)":"var(--color-neutral-600)")+";font:600 10px/1 var(--font-body);letter-spacing:.08em;cursor:pointer;border-radius:0",
+        hasPhoto: filled,
+        style:"position:relative;flex:1;height:66px;border:1px solid "+(filled?"var(--color-accent-600)":"var(--color-divider)")+";background:"+bg+";color:"+(filled?"var(--color-accent-900)":"var(--color-neutral-600)")+";font:600 10px/1 var(--font-body);letter-spacing:.08em;cursor:pointer;border-radius:0",
         onPick: ev2=>{
           const f = ev2.target.files && ev2.target.files[0];
           if(!f) return;
@@ -1102,6 +1184,7 @@ class Component extends DCLogic {
           const next = urls.slice(); next[i] = null;
           if(this.photos) this.photos.remove(sheet.key, i);
           this.patchEv(sheet.key, {urls: next, photos: next.filter(Boolean).length});
+          this.flash("Photo removed from this finding.");
         }
       };
     }) : [];
@@ -1228,6 +1311,23 @@ class Component extends DCLogic {
             : "Sign-offs upload to the shared QSCV portfolio as soon as you sign the audit.")
         : "Audits are saving to this phone only. Sign in so QSCV sees them and other auditors' work rolls up beside yours.",
       cloudCount: (s.cloudRows || []).length + " audits in the shared portfolio",
+      startNew: ()=>this.startNew(),
+      sendReport: ()=>this.sendReport(),
+      sendLabel: s.mailBusy ? (s.mailProgress || "Sending…") : s.mailSentAt ? "Send again" : "Send report to QSCV",
+      sendBusy: !!s.mailBusy,
+      sendTo: (()=>{
+        const route = this.mail ? this.mail.routeFor(s.meta.branch, null) : null;
+        if(!route) return "Loading recipient list…";
+        const owner = route.owner ? route.owner.name : "no area manager mapped";
+        return "QSCV team (3) + " + owner;
+      })(),
+      sendPhotoNote: (()=>{
+        const n = this.findingsList().reduce((t,f)=>t+f.urls.length, 0);
+        return n ? n + " photo" + (n===1?"":"s") + " will upload to Storage so managers can view the evidence remotely." : "No photos attached — the email carries the grade and the dashboard link.";
+      })(),
+      sendState: s.mailSentAt
+        ? "Sent " + new Date(s.mailSentAt).toLocaleTimeString("en-GB", {hour:"2-digit", minute:"2-digit"}) + " · " + ((s.mailResult && s.mailResult.photos) || 0) + " photos uploaded"
+        : s.cUser ? "Not sent yet" : "Sign in to send — the email goes out from the QSCV mailbox.",
       reset: e2=>{ e2.preventDefault(); try{localStorage.removeItem(KEY);}catch(err){} if(this.photos) this.photos.clearAll(); this.setState({screen:"home",cat:null,scores:{},ev:{},open:{},speed:{},signed:{a:false,b:false},savedAt:null,sheet:null}); this.clearSig("a"); this.clearSig("b"); }
     };
   }

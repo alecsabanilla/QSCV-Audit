@@ -10,7 +10,7 @@ export const BRANCHES = [
   {name:"Timog",        area:"North", stype:"Free standing",base:0.78, weak:["V","II"],    skip:0},
   {name:"Greenhills",   area:"North", stype:"Mall",         base:0.84, weak:["VII"],       skip:1},
   {name:"Tiendesitas",  area:"North", stype:"Free standing",base:0.81, weak:["III","IX"],  skip:0},
-  {name:"G2",           area:"South", stype:"Free standing",base:0.88, weak:["IX"],        skip:0},
+  {name:"Glorietta (G2)", area:"South", stype:"Free standing",base:0.88, weak:["IX"],        skip:0},
   {name:"Magallanes",   area:"South", stype:"Free standing",base:0.92, weak:[],            skip:0},
   {name:"NAIA T3",      area:"South", stype:"Mall",         base:0.74, weak:["V","VIII","IV"], skip:0},
   {name:"Ermita",       area:"South", stype:"Free standing",base:0.83, weak:["IV"],        skip:0},

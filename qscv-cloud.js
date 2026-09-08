@@ -19,7 +19,7 @@ export const FALLBACK_BRANCHES = [
   {name:"SM Pampanga", area:"North"}, {name:"SM North EDSA", area:"North"},
   {name:"Trinoma", area:"North"}, {name:"Timog", area:"North"},
   {name:"Greenhills", area:"North"}, {name:"Tiendesitas", area:"North"},
-  {name:"G2", area:"South"}, {name:"Magallanes", area:"South"},
+  {name:"Glorietta (G2)", area:"South"}, {name:"Magallanes", area:"South"},
   {name:"NAIA T3", area:"South"}, {name:"Ermita", area:"South"},
   {name:"MOA", area:"South"}, {name:"Southmall", area:"South"},
   {name:"Sta. Rosa", area:"South"}, {name:"Festival", area:"South"}
@@ -60,7 +60,9 @@ export function init(){
       import(CDN + "firebase-auth.js"),
       import(CDN + "firebase-firestore.js")
     ]);
-    M = Object.assign({}, a, b, c);
+    let d = {};
+    try{ d = await import(CDN + "firebase-storage.js"); }catch(e){}
+    M = Object.assign({}, a, b, c, d);
     app = M.initializeApp(CONFIG);
     auth = M.getAuth(app);
     try{
@@ -79,7 +81,7 @@ export function init(){
       user = u ? {uid:u.uid, email:u.email} : null;
       profile = null;
       if(u){
-        profile = {name:u.email, role:"auditor", _found:false, _uid:u.uid, _err:null};
+        profile = {name:u.email, role:"auditor", _found:false, _uid:u.uid, _err:null, _createErr:null, _cached:false};
         watchProfile(u.uid);
         setStatus("connecting", "");
         watchAudits();
@@ -105,6 +107,7 @@ export function init(){
 }
 
 let unProfile = null;
+const createTried = new Set();
 function watchProfile(uid){
   if(unProfile){ unProfile(); unProfile = null; }
   /* Live rather than one-shot: a role granted after sign-in applies immediately,
@@ -113,9 +116,30 @@ function watchProfile(uid){
     snap => {
       const d = snap.exists() ? snap.data() : null;
       profile = Object.assign({name:(user && user.email) || "", role:"auditor"}, d || {}, {
-        _found: snap.exists(), _uid: uid, _err: null
+        _found: snap.exists(), _uid: uid, _err: null,
+        _cached: snap.metadata.fromCache,
+        _createErr: (profile && profile._createErr) || null
       });
       emit("auth", {user, profile});
+      /* Create the profile from the device so its id is guaranteed to be the
+         real uid — typing a 28-character uid into the console by hand is the
+         single most common way this breaks. Role stays auditor; a manager
+         promotes it in the console. */
+      if(!snap.exists() && !snap.metadata.fromCache && !createTried.has(uid)){
+        createTried.add(uid);
+        const nice = ((user && user.email) || "").split("@")[0]
+          .split(/[._-]+/).filter(Boolean)
+          .map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+        M.setDoc(M.doc(db, "users", uid), {
+          name: nice || (user && user.email) || "Auditor",
+          role: "auditor",
+          email: (user && user.email) || null,
+          createdAt: Date.now()
+        }, {merge:true}).catch(err => {
+          profile = Object.assign({}, profile, {_createErr:(err && err.code) || "create failed"});
+          emit("auth", {user, profile});
+        });
+      }
     },
     err => {
       profile = {name:(user && user.email) || "", role:"auditor", _found:false, _uid:uid,
@@ -174,6 +198,7 @@ function stopWatch(){
   if(unBranches){ unBranches(); unBranches = null; }
   if(unProfile){ unProfile(); unProfile = null; }
   everLive = false;
+  createTried.clear();
   audits = []; emit("audits", audits);
 }
 
@@ -226,6 +251,42 @@ export async function saveAudit(rec){
   });
   await M.setDoc(M.doc(db, "audits", id), doc, {merge:true});
   return id;
+}
+
+/* ---------- report mail ---------- */
+
+/* The same id saveAudit writes under, so evidence, the audit and the email all
+   point at one record. */
+export async function currentAuditId(rec){
+  await init();
+  const tail = user ? user.uid.slice(0,6) : "local";
+  return [rec.date, slug(rec.branch), tail].join("_");
+}
+
+/* Evidence goes to Storage rather than into the email: managers can then view
+   findings remotely, which the on-device photo store never allowed. */
+export async function uploadEvidence(path, blob){
+  await init();
+  if(!user) throw new Error("Sign in before sending a report.");
+  if(!M.getStorage) throw new Error("Firebase Storage isn't available.");
+  const st = M.getStorage(app);
+  const ref = M.ref(st, path);
+  await M.uploadBytes(ref, blob, {contentType:"image/jpeg", cacheControl:"public,max-age=31536000"});
+  return M.getDownloadURL(ref);
+}
+
+/* A document in `mail` is the send request. The Trigger Email extension watches
+   this collection and does the actual SMTP delivery, so no credentials ever
+   touch the phone and a queued send survives the app being closed. */
+export async function queueMail(doc){
+  await init();
+  if(!user) throw new Error("Sign in before sending a report.");
+  const ref = await M.addDoc(M.collection(db, "mail"), Object.assign({}, doc, {
+    requestedBy: user.email,
+    requestedByUid: user.uid,
+    requestedAt: Date.now()
+  }));
+  return ref.id;
 }
 
 /* Managers void rather than delete: an audit is a compliance record, so a bad

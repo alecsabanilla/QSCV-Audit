@@ -440,8 +440,11 @@ class Component extends DCLogic {
       roleDebug: (()=>{
         const p = this.state.cProfile;
         if(!p || p.role === "manager") return "";
-        if(p._err) return "Couldn't read your role document ("+p._err+") — check the Firestore rules are published.";
-        if(p._found === false) return "No users/"+(p._uid||"?")+" document found — create it with role: manager.";
+        if(p._createErr) return "Couldn't create your profile document ("+p._createErr+") — re-publish firestore.rules, the users rules changed this release.";
+        if(p._err) return "Couldn't read your role document ("+p._err+") — check firestore.rules is published.";
+        if(p._found === false) return p._cached
+          ? "Your profile document hasn't loaded yet — it'll be created once this device reaches Firestore."
+          : "Creating your profile document now — refresh in a moment, then set its role to manager in the Firebase console.";
         return "users/"+(p._uid||"?")+" found, but role is \""+(p.role||"unset")+"\" — it must be exactly manager.";
       })(),
       hasRoleDebug: !!(this.state.cProfile && this.state.cProfile.role !== "manager" && this.state.cUser),

@@ -1,0 +1,28 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function signedIn() { return request.auth != null; }
+    function isManager() {
+      return signedIn()
+        && firestore.exists(/databases/(default)/documents/users/$(request.auth.uid))
+        && firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'manager';
+    }
+
+    // Audit evidence photos. Any signed-in auditor may upload compressed
+    // evidence and read the portfolio's photos; only a manager can delete.
+    // The 2MB ceiling is a guard against an uncompressed camera frame slipping
+    // through and running up the Storage bill.
+    match /evidence/{auditId}/{file} {
+      allow read: if signedIn();
+      allow write: if signedIn()
+        && request.resource.size < 2 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+      allow delete: if isManager();
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

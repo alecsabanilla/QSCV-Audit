@@ -9,13 +9,17 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'manager';
     }
 
-    // Auditor profiles. Each auditor reads/edits their own name; only a
-    // manager (or the console) may set roles.
+    // Auditor profiles. An auditor's device creates its own profile on first
+    // sign-in (so the document id is always exactly the uid) but may never set
+    // or change its own role — only a manager or the console can do that.
     match /users/{uid} {
       allow read: if signedIn();
-      allow create, update: if request.auth.uid == uid
-        && !( 'role' in request.resource.data.diff(resource.data).affectedKeys() );
-      allow write: if isManager();
+      allow create: if request.auth.uid == uid
+        && ( !('role' in request.resource.data) || request.resource.data.role == 'auditor' );
+      allow update: if isManager()
+        || ( request.auth.uid == uid
+             && request.resource.data.role == resource.data.role );
+      allow delete: if isManager();
     }
 
     // Audits. Any signed-in auditor may submit and read the portfolio;
@@ -26,6 +30,15 @@ service cloud.firestore {
       allow update: if signedIn()
         && ( resource.data.auditorUid == request.auth.uid || isManager() );
       allow delete: if isManager();
+    }
+
+    // Send queue for the Trigger Email extension. An auditor may only file a
+    // send request; nobody reads the queue back from the app, and nothing may
+    // edit a request after it is filed, so a delivered email can't be rewritten.
+    match /mail/{msgId} {
+      allow create: if signedIn() && request.resource.data.requestedByUid == request.auth.uid;
+      allow read: if isManager();
+      allow update, delete: if false;
     }
 
     // Branch list and other shared config — everyone reads, managers edit.
