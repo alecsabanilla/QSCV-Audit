@@ -41,14 +41,18 @@ export const ownerFor = branch => OWNER_BY_BRANCH[canon(branch)] || null;
 
 /* to = fixed QSCV list + the store's area manager. cc = the MOD who signed,
    when the branch record carries an address. */
-export function routeFor(branch, branchRec){
+export function routeFor(branch, branchRec, extraCc){
   const owner = ownerFor(branch);
   const to = ALWAYS.slice();
   if(owner) to.push(owner.email);
   const modEmail = branchRec && branchRec.modEmail ? String(branchRec.modEmail).trim() : "";
+  /* The store's own people: the auditor keys these in on the report screen and
+     the app remembers them per branch, so the second audit is prefilled. */
+  const store = (extraCc || []).map(e=>String(e).trim()).filter(Boolean);
+  const cc = (modEmail ? [modEmail] : []).concat(store.filter(e=>e !== modEmail));
   return {
-    to, cc: modEmail ? [modEmail] : [],
-    owner, modEmail,
+    to, cc,
+    owner, modEmail, store,
     warning: owner ? "" : "No area manager is mapped to " + (branch||"this branch") + " — sending to the QSCV list only."
   };
 }
@@ -93,7 +97,7 @@ export const subjectFor = rec => "QSCV Audit Report — " + (rec.branch||"Branch
    onProgress(done, total) drives the button's uploading state. */
 export async function sendReport(rec, findings, opts){
   const o = opts || {};
-  const route = routeFor(rec.branch, o.branchRec);
+  const route = routeFor(rec.branch, o.branchRec, o.extraCc);
   const auditId = await C.currentAuditId(rec);
 
   /* Upload evidence first — the email links Storage URLs, so managers see the

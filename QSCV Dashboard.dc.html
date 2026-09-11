@@ -284,8 +284,12 @@ class Component extends DCLogic {
     const {BRANCHES, CATS, WEEKS, RECORDS} = H;
     const area = this.state.area;
     const C = this.state.cloud;
-    const localRows = (this.state.live||[]).filter(r=>r && r.branch && r.score!=null);
-    const cloudRows = (this.state.cloudRows||[]).filter(r=>r && r.branch && r.score!=null);
+    /* Stores that were renamed keep their old name on audits already signed off,
+       which would otherwise split one store into two league rows. */
+    const ALIAS = {"G2":"Glorietta (G2)", "Glorietta":"Glorietta (G2)"};
+    const canon = r => ALIAS[r.branch] ? Object.assign({}, r, {branch:ALIAS[r.branch]}) : r;
+    const localRows = (this.state.live||[]).filter(r=>r && r.branch && r.score!=null).map(canon);
+    const cloudRows = (this.state.cloudRows||[]).filter(r=>r && r.branch && r.score!=null).map(canon);
     const merged = C ? C.mergeAudits(localRows, cloudRows) : localRows;
     const voidedRows = merged.filter(r=>r.voided);
     const live = merged.filter(r=>!r.voided);

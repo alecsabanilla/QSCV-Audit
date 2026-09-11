@@ -456,6 +456,22 @@ a:hover{color:var(--color-accent-700)}
 <div style="font:600 9.5px/1 var(--font-body);letter-spacing:.14em;text-transform:uppercase;color:var(--color-accent-700)">Email the report</div>
 <div style="display:flex;justify-content:space-between;gap:10px;font-size:12px;padding-bottom:2px;border-bottom:1px solid var(--color-divider)"><span style="color:var(--color-neutral-700)">Recipients</span><span style="text-align:right;color:var(--color-neutral-900)">{{ sendTo }}</span></div>
 <div style="font-size:11.5px;line-height:1.55;color:var(--color-neutral-600)">{{ sendPhotoNote }}</div>
+<div style="display:flex;flex-direction:column;gap:7px;padding-top:2px;border-top:1px solid var(--color-divider)">
+<div style="font:600 9.5px/1 var(--font-body);letter-spacing:.14em;text-transform:uppercase;color:var(--color-accent-700);padding-top:8px">Store recipients</div>
+<sc-if value="{{ storeEmpty }}">
+<div style="font-size:11.5px;line-height:1.5;color:var(--color-neutral-600)">Add the store's own addresses — MOD, store manager — and they're saved for this branch and prefilled next audit.</div>
+</sc-if>
+<sc-for list="{{ storeList }}" as="a" hint-placeholder-count="2">
+<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;border:1px solid var(--color-divider);background:var(--color-neutral-100)">
+<span style="flex:1;font-size:12px;word-break:break-all">{{ a.addr }}</span>
+<button type="button" aria-label="Remove recipient" style="width:26px;height:26px;flex:none;padding:0;border:1px solid var(--color-divider);background:transparent;color:var(--color-accent-900);font-size:12px;line-height:1;cursor:pointer;border-radius:0" onClick="{{ a.onRemove }}">✕</button>
+</div>
+</sc-for>
+<div style="display:flex;gap:8px">
+<input class="input" style="flex:1;min-height:44px;font-size:13px" type="email" inputMode="email" placeholder="name@store.com" value="{{ emailDraft }}" onChange="{{ setEmailDraft }}" onKeyDown="{{ emailKey }}">
+<button class="btn btn-secondary" style="min-height:44px;flex:none" onClick="{{ addStoreEmail }}">Add</button>
+</div>
+</div>
 <button class="btn btn-primary" style="width:100%;min-height:46px" disabled="{{ sendBusy }}" onClick="{{ sendReport }}">{{ sendLabel }}</button>
 <div style="font-size:11px;color:var(--color-neutral-600)">{{ sendState }}</div>
 </div>
@@ -717,6 +733,7 @@ const CRIT = {H:"High", M:"Medium", L:"Low"};
 const SEV  = {H:"Critical", M:"Major", L:"Minor"};
 const SEVPTS = {H:10, M:5, L:1};
 const KEY = "qscv-audit-draft-v1";
+const BOOK = "qscv-store-emails-v1";
 const ORDER = ["home","cats","list","summary","sign","export"];
 
 class Component extends DCLogic {
@@ -729,6 +746,7 @@ class Component extends DCLogic {
       speed:{}, daypart:"Lunch", timing:null, clock:0,
       signed:{a:false,b:false}, dest:"pdf", toast:null, savedAt:null,
       mailBusy:false, mailProgress:"", mailSentAt:null, mailWarned:false, mailResult:null, mailReady:false,
+      storeBook:{}, emailDraft:"",
       cloud:null, cUser:null, cProfile:null, cStatus:"connecting", cNote:"",
       cloudRows:[], branches:[], email:"", pw:"", authErr:"", authBusy:false
     };
@@ -745,6 +763,7 @@ class Component extends DCLogic {
       try{ const raw2 = localStorage.getItem(H.ARCHIVE_KEY); if(raw2) live = JSON.parse(raw2)||[]; }catch(e){}
       this.setState({hist:H, live});
     }).catch(()=>{});
+    this.loadStoreBook();
     import("./qscv-mail.js").then(Ma=>{ this.mail = Ma; this.setState({mailReady:true}); }).catch(()=>{});
     import("./qscv-photos.js").then(P=>{
       this.photos = P;
@@ -818,6 +837,30 @@ class Component extends DCLogic {
       this.flash("Saved on this phone only — sign in to share it with QSCV");
     }
   }
+  /* A per-branch address book the auditor builds up as they go: kept on the
+     phone and outside the draft, so it survives starting a new audit and the
+     next visit to that store is prefilled. */
+  storeEmails(){ return (this.state.storeBook || {})[this.state.meta.branch] || []; }
+  loadStoreBook(){
+    try{ this.setState({storeBook: JSON.parse(localStorage.getItem(BOOK) || "{}") || {}}); }catch(e){}
+  }
+  saveStoreBook(list){
+    const book = Object.assign({}, this.state.storeBook, {[this.state.meta.branch]: list});
+    this.setState({storeBook: book});
+    try{ localStorage.setItem(BOOK, JSON.stringify(book)); }catch(e){}
+  }
+  addStoreEmail(){
+    const raw = (this.state.emailDraft || "").trim();
+    if(!raw) return;
+    if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(raw)){ this.flash("That doesn't look like a valid email address."); return; }
+    if(!this.state.meta.branch){ this.flash("Pick the branch first — addresses are saved per store."); return; }
+    const list = this.storeEmails();
+    if(list.indexOf(raw) >= 0){ this.setState({emailDraft:""}); return; }
+    this.saveStoreBook(list.concat([raw]));
+    this.setState({emailDraft:""});
+    this.flash("Saved for " + this.state.meta.branch + " — it'll be prefilled next audit.");
+  }
+  removeStoreEmail(addr){ this.saveStoreBook(this.storeEmails().filter(e=>e!==addr)); }
   /* Every scored-N finding with its evidence, for the report email. */
   findingsList(){
     const out = [];
@@ -855,6 +898,7 @@ class Component extends DCLogic {
     import("./qscv-mail.js").then(Mail=>
       Mail.sendReport(rec, this.findingsList(), {
         branchRec: b,
+        extraCc: this.storeEmails(),
         onProgress:(n,total)=>this.setState({mailProgress: total ? "Uploading photo "+Math.min(n+1,total)+" of "+total : "Queueing"})
       })
     ).then(res=>{
@@ -1319,8 +1363,17 @@ class Component extends DCLogic {
         const route = this.mail ? this.mail.routeFor(s.meta.branch, null) : null;
         if(!route) return "Loading recipient list…";
         const owner = route.owner ? route.owner.name : "no area manager mapped";
-        return "QSCV team (3) + " + owner;
+        const store = this.storeEmails().length;
+        return "QSCV team (3) + " + owner + (store ? " + " + store + " at the store" : "");
       })(),
+      storeList: this.storeEmails().map(a=>({
+        addr:a, onRemove: e2=>{ e2.preventDefault(); this.removeStoreEmail(a); }
+      })),
+      storeEmpty: this.storeEmails().length === 0,
+      emailDraft: s.emailDraft || "",
+      setEmailDraft: e2=>this.setState({emailDraft:e2.target.value}),
+      addStoreEmail: e2=>{ e2.preventDefault(); this.addStoreEmail(); },
+      emailKey: e2=>{ if(e2.key === "Enter"){ e2.preventDefault(); this.addStoreEmail(); } },
       sendPhotoNote: (()=>{
         const n = this.findingsList().reduce((t,f)=>t+f.urls.length, 0);
         return n ? n + " photo" + (n===1?"":"s") + " will upload to Storage so managers can view the evidence remotely." : "No photos attached — the email carries the grade and the dashboard link.";
