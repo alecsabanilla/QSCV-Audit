@@ -18,12 +18,9 @@ export const REPLY_TO = "qscvcavten@cavallino.com.ph";
 
 /* Area managers own specific stores, not whole North/South halves. */
 export const AREA_OWNERS = [
-  {email:"roxie.picarzo@cavallino.com.ph",   name:"Roxie Picarzo",
-   branches:["Southmall","Festival","Glorietta (G2)","Sta. Rosa","NAIA T3"]},
-  {email:"neil.gutierrez@cavallino.com.ph",  name:"Neil Gutierrez",
-   branches:["Trinoma","SM North EDSA","MOA","SM Pampanga","Magallanes"]},
-  {email:"albert.ignacio@cavallino.com.ph",  name:"Albert Ignacio",
-   branches:["Tiendesitas","Ermita","Timog","Greenhills"]}
+  /* Tenya area managers have no mailbox yet. Until they do, the auditor adds
+     the address under "Store recipients" on the report screen and the app
+     remembers it for that branch. */
 ];
 
 /* "Glorietta (G2)", "glorietta", "G2" and "SM North Edsa" all have to match. */
@@ -53,7 +50,7 @@ export function routeFor(branch, branchRec, extraCc){
   return {
     to, cc,
     owner, modEmail, store,
-    warning: owner ? "" : "No area manager is mapped to " + (branch||"this branch") + " — sending to the QSCV list only."
+    warning: owner ? "" : "No area manager on file for " + (branch||"this branch") + " — sending to the QSCV list plus any store recipients you added."
   };
 }
 
@@ -85,7 +82,7 @@ export function compress(dataUrl){
 /* ---------- send ---------- */
 
 const esc = s => String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
-const DASH = "https://alecsabanilla.github.io/QSCV-Audit/QSCV%20Dashboard.dc.html";
+const DASH = "https://alecsabanilla.github.io/QSCV-Audit/Tenya%20QSCV%20Dashboard.dc.html";
 const fmtDate = d => {
   const t = new Date(String(d||"") + "T00:00:00");
   return isNaN(t) ? String(d||"") : t.toLocaleDateString("en-GB", {day:"2-digit", month:"short", year:"numeric"});
@@ -177,7 +174,7 @@ function buildHtml(rec, shots, route){
   + '<table cellpadding="0" cellspacing="0" border="0" width="600" style="width:600px;max-width:600px;background:' + GROUND + ';border:1px solid ' + INK + '">'
 
   + '<tr><td style="padding:22px 28px 18px;border-bottom:1px solid ' + INK + '">'
-  + '<div style="font:600 10px/1 Barlow,Arial,sans-serif;letter-spacing:.16em;text-transform:uppercase;color:' + ACCENT + '">Cavallino · QSCV Audit</div>'
+  + '<div style="font:600 10px/1 Barlow,Arial,sans-serif;letter-spacing:.16em;text-transform:uppercase;color:' + ACCENT + '">Cavallino · Tenya QSCV Audit</div>'
   + '<div style="font:700 28px/1.1 \'Barlow Condensed\',Barlow,Arial,sans-serif;color:' + INK + ';padding-top:8px">' + esc(rec.branch||"Branch") + '</div>'
   + '<div style="font:12px/1.6 Barlow,Arial,sans-serif;color:#4a4f54;padding-top:4px">'
   + esc(fmtDate(rec.date)) + ' · ' + esc(rec.stype||"") + ' · ' + esc(rec.area||"") + ' area'

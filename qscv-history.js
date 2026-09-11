@@ -1,24 +1,45 @@
-/* Branch roster, category weights and audit cycles for the QSCV dashboard.
-   RECORDS is intentionally empty: real audits only. */
+/* Branch rosters, category weights and audit cycles for the QSCV dashboards.
+   Two brands share one database; RECORDS is intentionally empty: real audits only. */
 
-export const AREAS = ["North", "South"];
+export const BRANDS = {
+  tenya: {
+    label: "Tenya",
+    areas: ["Express", "Full store"],
+    branches: [
+      {name:"Tenya Express Market! Market!", area:"Express",   stype:"Mall",          weak:[], skip:0},
+      {name:"Tenya Express Mitsukoshi",      area:"Express",   stype:"Mall",          weak:[], skip:0},
+      {name:"Tenya SM Southmall",            area:"Full store",stype:"Mall",          weak:[], skip:0},
+      {name:"Tenya Festival Mall",           area:"Full store",stype:"Mall",          weak:[], skip:0},
+      {name:"Tenya Glorietta 2",             area:"Full store",stype:"Mall",          weak:[], skip:0},
+      {name:"Tenya Tiendesitas",             area:"Full store",stype:"Free standing", weak:[], skip:0},
+      {name:"Tenya Paseo De Magallanes",     area:"Full store",stype:"Free standing", weak:[], skip:0}
+    ]
+  },
+  racks: {
+    label: "RACKS",
+    areas: ["North", "South"],
+    branches: [
+      {name:"SM Pampanga",    area:"North", stype:"Mall",          weak:[], skip:0},
+      {name:"SM North EDSA",  area:"North", stype:"Mall",          weak:[], skip:0},
+      {name:"Trinoma",        area:"North", stype:"Mall",          weak:[], skip:0},
+      {name:"Timog",          area:"North", stype:"Free standing", weak:[], skip:0},
+      {name:"Greenhills",     area:"North", stype:"Mall",          weak:[], skip:0},
+      {name:"Tiendesitas",    area:"North", stype:"Free standing", weak:[], skip:0},
+      {name:"Glorietta (G2)", area:"South", stype:"Free standing", weak:[], skip:0},
+      {name:"Magallanes",     area:"South", stype:"Free standing", weak:[], skip:0},
+      {name:"NAIA T3",        area:"South", stype:"Mall",          weak:[], skip:0},
+      {name:"Ermita",         area:"South", stype:"Free standing", weak:[], skip:0},
+      {name:"MOA",            area:"South", stype:"Mall",          weak:[], skip:0},
+      {name:"Southmall",      area:"South", stype:"Mall",          weak:[], skip:0},
+      {name:"Sta. Rosa",      area:"South", stype:"Free standing", weak:[], skip:0},
+      {name:"Festival",       area:"South", stype:"Mall",          weak:[], skip:0}
+    ]
+  }
+};
 
-export const BRANCHES = [
-  {name:"SM Pampanga",  area:"North", stype:"Mall",         base:0.93, weak:["IV"],        skip:0},
-  {name:"SM North EDSA",area:"North", stype:"Mall",         base:0.87, weak:["V","III"],   skip:0},
-  {name:"Trinoma",      area:"North", stype:"Mall",         base:0.90, weak:["VIII"],      skip:0},
-  {name:"Timog",        area:"North", stype:"Free standing",base:0.78, weak:["V","II"],    skip:0},
-  {name:"Greenhills",   area:"North", stype:"Mall",         base:0.84, weak:["VII"],       skip:1},
-  {name:"Tiendesitas",  area:"North", stype:"Free standing",base:0.81, weak:["III","IX"],  skip:0},
-  {name:"Glorietta (G2)", area:"South", stype:"Free standing",base:0.88, weak:["IX"],        skip:0},
-  {name:"Magallanes",   area:"South", stype:"Free standing",base:0.92, weak:[],            skip:0},
-  {name:"NAIA T3",      area:"South", stype:"Mall",         base:0.74, weak:["V","VIII","IV"], skip:0},
-  {name:"Ermita",       area:"South", stype:"Free standing",base:0.83, weak:["IV"],        skip:0},
-  {name:"MOA",          area:"South", stype:"Mall",         base:0.94, weak:[],            skip:0},
-  {name:"Southmall",    area:"South", stype:"Mall",         base:0.86, weak:["VII"],       skip:2},
-  {name:"Sta. Rosa",    area:"South", stype:"Free standing",base:0.80, weak:["III","V"],   skip:0},
-  {name:"Festival",     area:"South", stype:"Mall",         base:0.89, weak:["II"],        skip:0}
-];
+export const BRAND = "tenya";
+export const AREAS = BRANDS.tenya.areas;
+export const BRANCHES = BRANDS.tenya.branches;
 
 export const CATS = [
   {num:"I",    short:"Product quality",  weight:15},
@@ -48,4 +69,8 @@ const clamp = v => Math.max(0.42, Math.min(1, v));
    dashboard is a real audit arriving in real time. */
 export const RECORDS = [];
 
-export const ARCHIVE_KEY = "qscv-archive-v1";
+export const ARCHIVE_KEY  = "qscv-archive-tenya-v1";
+/* The RACKS field app writes its own on-device archive under this key; the
+   dashboard reads both so a manager sees every brand on one device. */
+export const ARCHIVE_KEYS = {tenya:"qscv-archive-tenya-v1", racks:"qscv-archive-v1"};
+export const BRAND_KEY    = "qscv-dashboard-brand-v1";

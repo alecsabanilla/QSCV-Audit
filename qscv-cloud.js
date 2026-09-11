@@ -14,15 +14,15 @@ export const CONFIG = {
   measurementId: "G-M556K23K3S"
 };
 
-/* Fallback branch list — used until config/branches exists in Firestore. */
+/* Fallback Tenya branch list — used until config/branchesTenya exists in Firestore. */
 export const FALLBACK_BRANCHES = [
-  {name:"SM Pampanga", area:"North"}, {name:"SM North EDSA", area:"North"},
-  {name:"Trinoma", area:"North"}, {name:"Timog", area:"North"},
-  {name:"Greenhills", area:"North"}, {name:"Tiendesitas", area:"North"},
-  {name:"Glorietta (G2)", area:"South"}, {name:"Magallanes", area:"South"},
-  {name:"NAIA T3", area:"South"}, {name:"Ermita", area:"South"},
-  {name:"MOA", area:"South"}, {name:"Southmall", area:"South"},
-  {name:"Sta. Rosa", area:"South"}, {name:"Festival", area:"South"}
+  {name:"Tenya Express Market! Market!", area:"Express"},
+  {name:"Tenya Express Mitsukoshi", area:"Express"},
+  {name:"Tenya SM Southmall", area:"Full store"},
+  {name:"Tenya Festival Mall", area:"Full store"},
+  {name:"Tenya Glorietta 2", area:"Full store"},
+  {name:"Tenya Tiendesitas", area:"Full store"},
+  {name:"Tenya Paseo De Magallanes", area:"Full store"}
 ];
 
 let M = null;            // loaded firebase modules
@@ -185,7 +185,7 @@ function watchAudits(){
 }
 function watchBranches(){
   if(unBranches) return;
-  unBranches = M.onSnapshot(M.doc(db, "config", "branches"),
+  unBranches = M.onSnapshot(M.doc(db, "config", "branchesTenya"),
     snap => {
       const d = snap.data();
       if(d && Array.isArray(d.list) && d.list.length){ branches = d.list; emit("branches", branches); }
