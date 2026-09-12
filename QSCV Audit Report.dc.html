@@ -15,8 +15,12 @@
 :root{
 --color-accent:#3f6b4a;--color-accent-2:#588f63;
 --color-accent-100:#edf4ee;--color-accent-200:#d3e6d6;--color-accent-300:#aecdb3;--color-accent-400:#83b08b;--color-accent-500:#588f63;--color-accent-600:#45744f;--color-accent-700:#2f5a3b;--color-accent-800:#204029;--color-accent-900:#14291a;
---color-accent-2-100:#edf4ee;--color-accent-2-200:#d3e6d6;--color-accent-2-300:#aecdb3;--color-accent-2-400:#83b08b;--color-accent-2-500:#588f63;--color-accent-2-600:#45744f;--color-accent-2-700:#2f5a3b;--color-accent-2-800:#204029;--color-accent-2-900:#14291a;
-}
+--color-accent-2-100:#edf4ee;--color-accent-2-200:#d3e6d6;--color-accent-2-300:#aecdb3;--color-accent-2-400:#83b08b;--color-accent-2-500:#588f63;--color-accent-2-600:#45744f;--color-accent-2-700:#2f5a3b;--color-accent-2-800:#204029;--color-accent-2-900:#14291a;}
+/* RACKS prints in the green above; Tenya audits print in steel blue. */
+.brand-tenya{
+--color-accent:#355472;--color-accent-2:#d9a520;
+--color-accent-100:#eef2f7;--color-accent-200:#d6e0ec;--color-accent-300:#b0c4da;--color-accent-400:#86a5c4;--color-accent-500:#5980a6;--color-accent-600:#476b8e;--color-accent-700:#355472;--color-accent-800:#243c53;--color-accent-900:#162536;
+--color-accent-2-100:#fdf7e6;--color-accent-2-200:#f9ebc0;--color-accent-2-300:#f0d787;--color-accent-2-400:#e6bf4e;--color-accent-2-500:#d9a520;--color-accent-2-600:#b4861a;--color-accent-2-700:#8a6714;--color-accent-2-800:#5f470e;--color-accent-2-900:#3a2b08;}
 doc-page:not(:defined){visibility:hidden}
 .qr-t{width:100%;border-collapse:collapse;font-size:9.5pt}
 .qr-t th{text-align:left;font:600 8pt/1.3 var(--font-body);letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700);border-bottom:1px solid var(--color-text);padding:5px 6px}
@@ -27,10 +31,10 @@ doc-page:not(:defined){visibility:hidden}
 
 <doc-page margin="0.6in">
 
-<div style="font-family:var(--font-body);color:var(--color-text)">
+<div class="{{ brandClass }}" style="font-family:var(--font-body);color:var(--color-text)">
 
 <div style="display:flex;justify-content:space-between;align-items:baseline;font:600 8pt/1.4 var(--font-body);letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700);border-bottom:1px solid var(--color-divider);padding-bottom:6px;margin-bottom:22px">
-<span>RACKS · QSCV Audit Report</span><span>{{ branch }}</span>
+<span>Cavallino · QSCV Audit Report</span><span>{{ branch }}</span>
 </div>
 
 <div style="font:600 8.5pt/1 var(--font-body);letter-spacing:.14em;text-transform:uppercase;color:var(--color-accent-700)">Quality · Service · Cleanliness · Value</div>
@@ -163,6 +167,7 @@ class Component extends DCLogic {
     const D = this.state.data, draft = this.state.draft;
     if(!D || !draft) return {};
     const {CATS, MEASURES, PTS, CRIT, SEV, SEVPTS} = D;
+    const brandClass = "brand-" + (D.BRAND || "tenya");
     const scores = draft.scores||{}, ev = draft.ev||{}, speed = draft.speed||{}, meta = draft.meta||{}, signed = draft.signed||{};
 
     const catStat = c => {
@@ -247,6 +252,7 @@ class Component extends DCLogic {
 
     const now = new Date();
     return {
+      brandClass,
       branch: meta.branch||"—", stype: meta.stype||"—", date: meta.date||"—", time: meta.time||"—",
       auditor: meta.auditor||"—", mod: meta.mod||"—",
       generated: now.toLocaleString(),

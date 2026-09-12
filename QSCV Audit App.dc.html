@@ -12,10 +12,13 @@
 <script src="_ds/industry-66f186c5-855f-4942-a2fc-ba3ddbeae0dd/_ds_bundle.js"></script>
 <style>
 :root{
+--color-accent:#355472;--color-accent-2:#d9a520;
+--color-accent-100:#eef2f7;--color-accent-200:#d6e0ec;--color-accent-300:#b0c4da;--color-accent-400:#86a5c4;--color-accent-500:#5980a6;--color-accent-600:#476b8e;--color-accent-700:#355472;--color-accent-800:#243c53;--color-accent-900:#162536;
+--color-accent-2-100:#fdf7e6;--color-accent-2-200:#f9ebc0;--color-accent-2-300:#f0d787;--color-accent-2-400:#e6bf4e;--color-accent-2-500:#d9a520;--color-accent-2-600:#b4861a;--color-accent-2-700:#8a6714;--color-accent-2-800:#5f470e;--color-accent-2-900:#3a2b08;}
+.brand-racks{
 --color-accent:#3f6b4a;--color-accent-2:#588f63;
 --color-accent-100:#edf4ee;--color-accent-200:#d3e6d6;--color-accent-300:#aecdb3;--color-accent-400:#83b08b;--color-accent-500:#588f63;--color-accent-600:#45744f;--color-accent-700:#2f5a3b;--color-accent-800:#204029;--color-accent-900:#14291a;
---color-accent-2-100:#edf4ee;--color-accent-2-200:#d3e6d6;--color-accent-2-300:#aecdb3;--color-accent-2-400:#83b08b;--color-accent-2-500:#588f63;--color-accent-2-600:#45744f;--color-accent-2-700:#2f5a3b;--color-accent-2-800:#204029;--color-accent-2-900:#14291a;
-}
+--color-accent-2-100:#edf4ee;--color-accent-2-200:#d3e6d6;--color-accent-2-300:#aecdb3;--color-accent-2-400:#83b08b;--color-accent-2-500:#588f63;--color-accent-2-600:#45744f;--color-accent-2-700:#2f5a3b;--color-accent-2-800:#204029;--color-accent-2-900:#14291a;}
 body{margin:0;background:var(--color-bg)}
 a{color:var(--color-accent);text-decoration:none}
 a:hover{color:var(--color-accent-700)}
@@ -39,13 +42,13 @@ a:hover{color:var(--color-accent-700)}
 </style>
 </helmet>
 
-<div class="qs-shell" style="min-height:100vh;display:flex;gap:44px;padding:44px 48px 64px;align-items:flex-start;font-family:var(--font-body);color:var(--color-text)">
+<div class="qs-shell {{ brandClass }}" style="min-height:100vh;display:flex;gap:44px;padding:44px 48px 64px;align-items:flex-start;font-family:var(--font-body);color:var(--color-text)">
 
 <div class="qs-aside" style="width:330px;flex:none;display:flex;flex-direction:column;gap:24px;position:sticky;top:44px">
 <div>
 <div style="font:600 10px/1 var(--font-body);letter-spacing:.14em;text-transform:uppercase;color:var(--color-accent-700);margin-bottom:10px">QSCV Department · Mobile</div>
-<h2 style="font-size:34px;margin:0 0 8px">RACKS QSCV<br>Audit — field app</h2>
-<p style="font-size:13px;line-height:1.6;color:var(--color-neutral-700);margin:0">Working prototype of the RACKS-QSCV Audit Form as a one-handed store-walk tool. Nine weighted categories, Y / N / N-A scoring at the item's own risk level, evidence attached at the moment of the finding, and a grade that moves as you tap.</p>
+<h2 style="font-size:34px;margin:0 0 8px">Cavallino QSCV<br>Audit — field app</h2>
+<p style="font-size:13px;line-height:1.6;color:var(--color-neutral-700);margin:0">One field app for both brands. Pick RACKS or Tenya on the setup screen and the whole form swaps — questions, branch list and colour. Nine weighted categories are scored Y / N / N-A at each item's assigned risk level, evidence is captured at the point of observation, and the grade is calculated in real time. Each brand keeps its own draft, so switching never loses work.</p>
 </div>
 
 <div class="card blueprint" style="gap:12px;padding:16px">
@@ -63,10 +66,11 @@ a:hover{color:var(--color-accent-700)}
 <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
 <div class="card-kicker">Assumptions to confirm</div>
 <ul style="margin:0;padding-left:16px;font-size:12.5px;line-height:1.6;color:var(--color-neutral-700)">
-<li>Risk levels for Category VII (FOH) were inferred — the sheet leaves several blank.</li>
+<li>Risk levels are inferred wherever a sheet leaves them blank — most of Tenya's Cat I stations, Cat III–VI and IX. Worth a review pass.</li>
+<li>Tenya's Cat VII and VIII carry point values rather than risk; 3 pts → High, 2 → Medium, 1 → Low.</li>
 <li>Deviations map from risk: High → Critical (10), Medium → Major (5), Low → Minor (1).</li>
-<li>An MOD signing in gets read-only scoring and can only acknowledge.</li>
-<li>Speed standards sample 5 transactions (3 for billing / bussing) per the sheet's guides.</li>
+<li>N-A leaves both actual and possible, so a store is graded only on what applied.</li>
+<li>Branch rosters come from Firestore when <code>config/branches</code> or <code>config/branchesTenya</code> exists, and from the built-in list otherwise.</li>
 </ul>
 </div>
 
@@ -120,7 +124,7 @@ a:hover{color:var(--color-accent-700)}
 <sc-if value="{{ signedOut }}" hint-placeholder-val="{{ true }}">
 <div style="display:flex;flex-direction:column;gap:10px">
 <div class="field"><label>Work email</label>
-<input class="input" type="email" autoComplete="username" placeholder="you@racks.com.ph" value="{{ email }}" onChange="{{ setEmail }}" style="min-height:44px">
+<input class="input" type="email" autoComplete="username" placeholder="you@cavallino.com.ph" value="{{ email }}" onChange="{{ setEmail }}" style="min-height:44px">
 </div>
 <div class="field"><label>Password</label>
 <input class="input" type="password" autoComplete="current-password" value="{{ pw }}" onChange="{{ setPw }}" style="min-height:44px">
@@ -154,6 +158,14 @@ a:hover{color:var(--color-accent-700)}
 <div class="blueprint" style="padding:14px;display:flex;flex-direction:column;gap:12px">
 <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
 <div style="font:600 9.5px/1 var(--font-body);letter-spacing:.14em;text-transform:uppercase;color:var(--color-accent-700)">Details of the audit</div>
+<div class="field"><label>Brand</label>
+<div style="display:flex;gap:8px">
+<sc-for list="{{ brandOpts }}" as="b" hint-placeholder-count="2">
+<button style="{{ b.style }}" onClick="{{ b.pick }}">{{ b.label }}</button>
+</sc-for>
+</div>
+<div style="font-size:11px;line-height:1.5;color:var(--color-neutral-600);margin-top:7px">{{ brandNote }}</div>
+</div>
 <div class="field"><label>Branch</label>
 <select class="input" value="{{ mBranch }}" onChange="{{ setBranch }}">
 <sc-for list="{{ branchList }}" as="b" hint-placeholder-count="14">
@@ -261,6 +273,16 @@ a:hover{color:var(--color-accent-700)}
 
 <sc-if value="{{ isList }}">
 <div style="animation:qsIn .3s ease">
+<sc-if value="{{ stepMode }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--color-divider);background:var(--color-neutral-100)">
+<button class="btn btn-secondary" style="min-height:38px;padding:0 12px;flex:none" disabled="{{ stepFirst }}" onClick="{{ stepPrev }}">‹</button>
+<div style="flex:1;min-width:0;text-align:center">
+<div style="font:600 9.5px/1.3 var(--font-body);letter-spacing:.14em;text-transform:uppercase;color:var(--color-accent-700)">{{ stepLabel }}</div>
+<div style="font-size:11px;color:var(--color-neutral-600)">{{ stepDone }}</div>
+</div>
+<button class="btn btn-secondary" style="min-height:38px;padding:0 12px;flex:none" disabled="{{ stepLast }}" onClick="{{ stepNext }}">›</button>
+</div>
+</sc-if>
 <sc-for list="{{ groups }}" as="g" hint-placeholder-count="3">
 <div>
 <button style="{{ g.headStyle }}" onClick="{{ g.toggle }}">
@@ -446,7 +468,7 @@ a:hover{color:var(--color-accent-700)}
 <div style="font:600 9.5px/1 var(--font-body);letter-spacing:.14em;text-transform:uppercase;color:var(--color-accent-700)">Send to</div>
 <div style="display:flex;flex-direction:column;gap:8px">
 <label class="radio"><input type="radio" name="dest" checked="{{ destPdf }}" onChange="{{ setDestPdf }}"><span class="dot"></span>PDF, laid out like the audit form</label>
-<label class="radio"><input type="radio" name="dest" checked="{{ destXls }}" onChange="{{ setDestXls }}"><span class="dot"></span>Excel, same tabs as RACKS-QSCV Audit Form</label>
+<label class="radio"><input type="radio" name="dest" checked="{{ destXls }}" onChange="{{ setDestXls }}"><span class="dot"></span>Excel, same tabs as TENYA QSCV Audit Form</label>
 <label class="radio"><input type="radio" name="dest" checked="{{ destBoth }}" onChange="{{ setDestBoth }}"><span class="dot"></span>Both, plus CAPA tasks to the branch</label>
 </div>
 </div>
@@ -547,7 +569,226 @@ a:hover{color:var(--color-accent-700)}
 </div>
 </x-dc>
 <script type="text/x-dc" data-dc-script data-props="{&quot;scoreDisplay&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Running total with grade meter&quot;,&quot;Numeric only&quot;],&quot;default&quot;:&quot;Running total with grade meter&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Scoring interaction&quot;},&quot;navStyle&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Weighted list&quot;,&quot;Grid tiles&quot;],&quot;default&quot;:&quot;Weighted list&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Category navigation&quot;},&quot;summaryViz&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Weighted bars&quot;,&quot;Per-category dials&quot;,&quot;Spreadsheet table&quot;],&quot;default&quot;:&quot;Weighted bars&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Summary visualization&quot;},&quot;platform&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;iOS&quot;,&quot;Android&quot;],&quot;default&quot;:&quot;iOS&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Device&quot;}}">
-const CATS = [
+const CATS_TENYA = [
+  {num:"I", name:"Product Quality", weight:15, groups:[
+    {name:"Station 1 · Cold table / chiller top", items:[
+      ["H","All seafood products are visually fresh, no discoloration, no foul smell, not slimy."],
+      ["L","Portion sizes for seafood are followed (Squid trimmings 30g/60g; Salmon trimmings 40g)"],
+      ["H","All meat products are visually fresh, no discoloration, no foul smell, not slimy."],
+      ["L","Portion sizes for meat are followed (Pork thin cut 75g/50g; Chicken trimmings 100g)"],
+      ["L","Inventory form is updated"],
+      ["H","Products are kept at chilled condition (0–4°C)"]]},
+    {name:"Station 2 · Batter & uchiko", items:[
+      ["M","Tempurako is dry and sealed properly."],
+      ["H","Batter is prepared accordingly (1500g standard weight; water at 5–8°C; counter-clockwise mixing & clockwise turning, 1 min)"],
+      ["L","Correct tools are used (mixing bowl & wire whisk)"],
+      ["H","Mixed batter is within standard (10–15°C; 1 hr shelf life from production; fewer than 10 lumps)"],
+      ["L","There is sufficient stock of uchiko (200g)"],
+      ["M","Uchiko is sifted every hour"],
+      ["L","Batter production form is updated."]]},
+    {name:"Station 3 · Rice preparation", items:[
+      ["H","Rice grains are free from impurities and pest."],
+      ["L","Soaking time for washed rice is at least 60 mins"],
+      ["M","Water to rice ratio is followed"],
+      ["H","Shelf-life of cooked white rice is at 2 hours"],
+      ["L","Correct tools are used for making seasoned rice (mixing bowls and scooper)"],
+      ["L","Chahan rice is properly mixed, all grains coated and boiled for 5 mins."],
+      ["L","All grains for seasoned rice (sushi, onigiri, kimchi) are coated. No discoloration observed."],
+      ["M","All end products are properly labeled with shelf life (Chahan MTO; Sushi EOD; Onigiri EOD; Kimchi 72H)"]]},
+    {name:"Station 4 · Noodles", items:[
+      ["H","Noodles are intact, no signs of deterioration, foul odor, pest, or discoloration"],
+      ["M","Standard cooking time is followed"],
+      ["L","Cooked noodles are not mushy, no clumps observed."],
+      ["L","Noodles are correct in portion size"],
+      ["M","Noodles end product saltiness is followed (1.5–1.7)"]]},
+    {name:"Station 5 · Vegetables", items:[
+      ["H","Vegetables are in good condition, intact, no signs of deterioration or contamination; washed and sanitized prior to use."],
+      ["L","Back-up vegetables prepared to standard size (green beans 11–14cm; sweet potato 3–5mm, 10–15g; eggplant 6–8mm, 13–15g; white onion 1cm; shimeji 15g; bell pepper 1cm × 4cm)"],
+      ["M","Shelf life & labelling is followed"],
+      ["L","Production / inventory forms are kept updated"]]},
+    {name:"Station 6 · Bar station", items:[
+      ["M","Canned and bottled beverages are properly stored, in good condition, and within their shelf life"],
+      ["M","Ningyoyaki is in good condition, not deformed, free from any signs of contamination or spoilage"],
+      ["L","Inventory form is updated."]]},
+    {name:"Station 7 · Spices, seasonings, dips & sauces", items:[
+      ["M","Portioned spices, seasonings, dips and sauces are in the correct container, labeled with shelf life (dispose-of / use-by date)"],
+      ["H","Portioned items are in good condition, no signs of contamination or cross-contact of allergenic ingredients"],
+      ["M","Cold dipping sauce & tempura sauce are at correct saltiness (2.4–2.7°Bx)"],
+      ["M","Toji sauce & steak sauce are at correct density"]]},
+    {name:"Station 8 · Soups & hot process", items:[
+      ["H","Miso soup is at correct saltiness (1.0–1.3°Bx)"],
+      ["M","Ramen broth is at correct saltiness (1.2–1.7°Bx)"],
+      ["H","Miso soup and ramen broth are at the right temperature (70°C)"],
+      ["L","Gyudon and sukiyaki are boiled for 5 minutes in thawing procedure"],
+      ["L","Sukiyaki is cooked for 1.5 minutes and follows standard portioning"],
+      ["L","Cooked products are visually appealing, served hot, no off-odor or off-specs"]]},
+    {name:"Station 9 · Fry station", items:[
+      ["H","All seafood products are cooked according to their standard procedure."],
+      ["H","All meat & chicken products are cooked according to their standard procedure (30 seconds inlet)"],
+      ["M","All vegetable products are cooked according to their standard procedure."],
+      ["L","Correct portion sizes are followed."],
+      ["M","Cooked products are visually appealing, served hot, and no off-odor or off-specs."]]},
+    {name:"Station 10 · Salad station", items:[
+      ["H","All end-product salads are fresh and in good quality, no discoloration, no wilting, spoilage, or deterioration"],
+      ["M","All end-product salads are prepared and assembled according to their standard procedure and portions"]]}
+  ]},
+  {num:"II", name:"Personnel Health & Disease Control", weight:10, groups:[
+    {name:"All personnel", items:[
+      ["H","100% compliance to proper grooming and hygiene (no dirty or long fingernails, no facial hair, body odor)"],
+      ["H","100% compliance to proper handwashing and hand sanitizing techniques; all staff comply with the 30-minute handwash call."],
+      ["H","Gloves are changed after handling raw products, money, garbage, restroom visits, or changing stations."],
+      ["L","Personnel lockers are clean and organized; personal food in closed containers, no clutter or food debris."],
+      ["H","No open wounds; if with wounds, properly covered with band-aid and refrained from handling food."],
+      ["M","Personal water jugs are placed away from food prep areas."],
+      ["L","Restroom & break schedule are followed; staff compliant to put-on policy"]]}
+  ]},
+  {num:"III", name:"Cleaning & Sanitation", weight:10, groups:[
+    {name:"Housekeeping & waste", items:[
+      ["M","100% compliance to cleaning schedule; facilities, equipment, tools and utensils cleaned per the cleaning & sanitation manual"],
+      ["M","100% compliance to good housekeeping; kitchen & FOH stations clean at all times; CLAYGO practiced"],
+      ["H","Waste segregation thoroughly followed; no mix-up of biodegradable and non-biodegradable; hazardous / broken wares kept away from food prep areas"],
+      ["M","100% compliance to waste disposal schedule. No overflowing trash. Bins covered per color coding, clearly labelled."]]},
+    {name:"Chemicals", items:[
+      ["H","Correct chemicals are used. No unapproved chemicals. Correct chemical application is followed."],
+      ["M","All chemical containers / dispensers are correctly labelled, clean and functional."],
+      ["H","All chemicals follow the correct dilution."]]},
+    {name:"Tools & dishwashing", items:[
+      ["H","Towel, tools and mop color-coding strictly followed. No cross-contact of cleaning tools."],
+      ["M","Dishwashing and sanitizing facilities are thoroughly cleaned and follow the cleaning schedule."],
+      ["H","Temperature control for dishwashing machine and glass machine works and follows the correct setting."],
+      ["L","Bussing kit is kept clean, food debris removed after bussing out tables. Spray bottles regularly refilled."],
+      ["L","Cleaning monitoring forms are updated and well-documented."]]}
+  ]},
+  {num:"IV", name:"Maintenance of Facilities, Utilities & Equipment", weight:10, groups:[
+    {name:"Building", items:[
+      ["M","PMS and service repairs are regularly conducted and completed."],
+      ["M","Floors and drains are fixed, no loose or missing screws. Tiles complete, no cracks or loose tiles"],
+      ["M","Walls and ceilings are closed, no open gaps or boards; no chipping paint or cobwebs"],
+      ["L","Doors close fully. No loose hinges or missing screws, no dilapidated parts or chipped glass / paint."],
+      ["M","Lightings are covered, clean and free from pest. No busted lights"],
+      ["L","No accumulation of dust and dirt on the vents"]]},
+    {name:"Equipment & devices", items:[
+      ["M","No rust, chipped, loose or missing parts on tools, equipment and facilities"],
+      ["M","No recurring issues. All FCD concerns are addressed and updated."],
+      ["H","Measuring devices (thermometers, salt meters, refractometers) kept in good condition. Calibration verified daily."],
+      ["L","Menus, marketing paraphernalia and displays are kept clean and properly updated"]]}
+  ]},
+  {num:"V", name:"Safe Food Handling", weight:20, groups:[
+    {name:"Storage", items:[
+      ["M","Dry raw materials properly stored with correct wall and floor clearance, labelled, stored at 27–32°C"],
+      ["H","Freezer / chiller products at correct temperature (0–4°C chilled; −18 to −10°C frozen); no thawing, freezer burn, or broken packaging."],
+      ["H","All products follow FIFO and FEFO and are labelled with production / receiving and expiry date"],
+      ["M","Segregation of expired, spoiled or waste items. All documented and disposed of properly."]]},
+    {name:"Hazards & cross-contamination", items:[
+      ["H","No chemical, biological or physical hazards in the BOH and FOH areas"],
+      ["H","No cross-contamination or cross-contact of raw materials, tools and equipment. Allergenic ingredients prepared to prevent cross-contact."],
+      ["H","All staff comply with the color-coding of knives and chopping boards."],
+      ["H","No products stored in the TDZ for more than 4 hours (5°C to 60°C)"],
+      ["H","All frozen items are thawed correctly. Forced thawing is not allowed."]]},
+    {name:"Pest control", items:[
+      ["H","No live or dead rodents or cockroaches in the kitchen or dining area; no signs of pest activity in all areas"],
+      ["M","Pest traps are maintained clean and functional."]]}
+  ]},
+  {num:"VI", name:"Complaints & Non-Compliance", weight:5, groups:[
+    {name:"Complaints & CAPA", items:[
+      ["H","No guest complaints 1 week prior to audit day and during audit day"],
+      ["H","CAPA from previous audit has been addressed and closed out."],
+      ["L","Guest comment forms are present and accessible."],
+      ["M","All store staff are in proper conduct and behavior during the audit"]]}
+  ]},
+  {num:"VII", name:"Front of the House", weight:10, groups:[
+    {name:"Guest relations · greeting & seating", items:[
+      ["H","Staff greet the guest within 7 seconds with a smile, eye contact and \"Irrashaimase\" (with proper bowing)"],
+      ["M","Receptionist greets the guest: \"Try Tenya, Japan's number 1 tempura\""],
+      ["M","Leads and assists in seating the guests"],
+      ["H","Anticipates and responds promptly to guest needs; building rapport."],
+      ["H","Presence of the Manager to supervise the entire flow of restaurant operations"],
+      ["H","Guests not waving hands nor looking around for staff; requests and concerns immediately addressed"]]},
+    {name:"Taking orders", items:[
+      ["H","Staff gives open menu to guests, suggesting new product or current promo"],
+      ["H","Staff is knowledgeable with products and current promo; can accurately describe components and pricing"],
+      ["H","Staff applies suggestive selling, upselling & add-ons; proactively suggests appetizer, large side, or bottomless upgrade"],
+      ["H","Staff is courteous and energetic, maintains eye contact, focused on the task, never distracted at the guest table"],
+      ["M","Staff informs approximate serving time of products ordered (5–15 minutes)"]]},
+    {name:"Serving orders", items:[
+      ["H","Quality control and presentation checked before serving the product to the guest"],
+      ["M","Order served accurately (right table, right orders); serving sequence followed, no cross serving"],
+      ["H","Staff ensures completion of orders"],
+      ["M","Staff mentions the product name"],
+      ["H","Staff always introduces condiments on the table (soy sauce, shichimi, don tare sauce)"],
+      ["M","Drinks served at the upper right side of the tray"]]},
+    {name:"Check back & feedback", items:[
+      ["H","Staff asks the guest for feedback on food and service within 5 minutes after food is served"],
+      ["M","Staff applies dessert / coffee pitching before the guest finishes the main course"],
+      ["M","Staff performs proper pre-bussing during service"],
+      ["M","Staff actively encourages guests to fill out the Guest Comment Card or digital survey"]]},
+    {name:"Billing, change & departure", items:[
+      ["L","Staff asks for cash or card payment and applicable privilege card (Senior citizen, PWD, ambassador)"],
+      ["L","Staff asks if the guest has a Tenya Loyalty Card or applicable partner discounts"],
+      ["M","Staff presents the bill and receives payment, verbalizing payment received from the guest"],
+      ["L","Staff gives change and thanks the guest"],
+      ["H","Staff alert to guests leaving, thanks the guest with proper bowing; presence of GRS during peak hours"]]},
+    {name:"Table set-up & ambience", items:[
+      ["H","Standard table set-up; clean and sanitized tables and chairs, neatly arranged (chopstick, table napkin)"],
+      ["H","Tables and chairs are not wobbly or damaged"],
+      ["M","Uses standard set-up kit"],
+      ["H","Dining area maintains ambient temperature of 15–25°C; AC set to 22°C"],
+      ["H","No irritating noise from employees; no loitering"],
+      ["M","Store lighting is warm, cozy and bright (no defective bulbs)"],
+      ["M","Modulated music played, standard playlist"]]},
+    {name:"Staff grooming", items:[
+      ["H","Complete, well-pressed uniform with nameplate; Tenya cap, mouth guard / facemask, apron and pants not faded or tight; 2 ballpens and tickler for FOH"],
+      ["H","Proper posture, standing straight, hands in front, dominant hand under non-dominant hand"],
+      ["H","No jewelry, no cellphone (except pearl stud earrings for female servers)"],
+      ["M","Proper haircut, with hairnet, no sideburns, no hair highlights"],
+      ["M","No mustache, no visible tattoos, no missing front teeth"],
+      ["M","Wears prescribed shoes and black socks, clean and not worn out"],
+      ["H","Trimmed fingernails, no nail polish; light earth-tone make-up for female staff"]]},
+    {name:"Manager grooming", items:[
+      ["H","Clean prescribed uniform, not tight or faded, nameplate, black socks for male, belt not worn out"],
+      ["M","No hair highlights, conservative hairstyle"],
+      ["H","Wears prescribed shoes, clean and not worn out"],
+      ["M","Light make-up for female manager, low tight bun, hairnet during hands-on work, stud earrings"],
+      ["H","No missing front teeth, no mustache, no visible tattoo"],
+      ["M","No bracelet, ring or contact lenses"]]},
+    {name:"Pre-bussing & bussing out", items:[
+      ["H","Staff politely asks permission of the guests before clearing the table"],
+      ["M","During pre-bussing, soiled dishes, silverware and used napkins are taken properly from the guest table"],
+      ["M","Bussing out: staff wipes the table with a green sanitized towel, careful not to create annoying sound"],
+      ["M","Don tare sauce and other condiments clean; not oily or sticky bottle / nozzle"],
+      ["H","Staff cleans chairs, removes debris under the table, lines up chairs for an orderly appearance"]]},
+    {name:"Delivery services / aggregators", items:[
+      ["H","Aggregator schedule is in line with the store's operating schedule"],
+      ["H","Menu checked to update product availability and promo activations"],
+      ["H","Food is well sealed and follows standard preparation for each food item"],
+      ["H","Complete orders checked; with condiments and utensils"],
+      ["M","Rider logs details on the logbook and is assisted on dispatch of the product"]]}
+  ]},
+  {num:"VIII", name:"Speed of Service", weight:10, speed:true, groups:[]},
+  {num:"IX", name:"Records & Documentation", weight:10, groups:[
+    {name:"Records", items:[
+      ["H","Ice and water potability tests / micro analysis conducted monthly or per LGU requirements. Results filed and updated."],
+      ["H","Changing of water filter is kept updated and done according to schedule"],
+      ["H","All business permits are complete and updated, displayed, clean and visible."],
+      ["H","Health certificates of all personnel are filed and documented."],
+      ["M","All employees have passed their respective FOH or BOH training."],
+      ["M","All employees have passed their food safety training."],
+      ["M","All daily checklists are updated daily, accurate and filed properly"]]}
+  ]}
+];
+
+const MEASURES_TENYA = [
+  {id:"ack",  name:"Acknowledging new guest", std:"15 seconds",    limit:15,  n:5, max:6},
+  {id:"ord",  name:"Waiting to order",        std:"2 minutes",     limit:120, n:5, max:6},
+  {id:"food", name:"Food serving time",       std:"5–15 minutes",  limit:900, n:5, max:6},
+  {id:"bill", name:"Billing & change",        std:"2 minutes",     limit:120, n:3, max:6},
+  {id:"bus",  name:"Bussing time",            std:"2 minutes",     limit:120, n:3, max:6}
+];
+const PTS = {H:10, M:5, L:1};
+const CRIT = {H:"High", M:"Medium", L:"Low"};
+const SEV  = {H:"Critical", M:"Major", L:"Minor"};
+const SEVPTS = {H:10, M:5, L:1};
+const CATS_RACKS = [
   {num:"I", name:"Product Quality", weight:15, groups:[
     {name:"Station 1 · Grill", items:[
       ["H","CVAP steaming time and temperature are followed. (45 mins; SSC 15 mins; 160°F–170°F)"],
@@ -721,28 +962,74 @@ const CATS = [
   ]}
 ];
 
-const MEASURES = [
+const MEASURES_RACKS = [
   {id:"ack",  name:"Acknowledging new guest", std:"15 seconds", limit:15,   n:5, max:6},
   {id:"ord",  name:"Waiting to order",        std:"2 minutes",  limit:120,  n:5, max:5},
   {id:"food", name:"Food serving time",       std:"15–20 minutes", limit:1200, n:5, max:5},
   {id:"bill", name:"Billing & change",        std:"2 minutes",  limit:120,  n:3, max:5},
   {id:"bus",  name:"Bussing time",            std:"2 minutes",  limit:120,  n:3, max:5}
 ];
-const PTS = {H:10, M:5, L:1};
-const CRIT = {H:"High", M:"Medium", L:"Low"};
-const SEV  = {H:"Critical", M:"Major", L:"Minor"};
-const SEVPTS = {H:10, M:5, L:1};
-const KEY = "qscv-audit-draft-v1";
-const BOOK = "qscv-store-emails-v1";
+
+/* One app, two brands. Each keeps its own question catalog, branch roster,
+   draft and store address book, so switching brand mid-day loses nothing. */
+const BRANDS = {
+  racks: {
+    label:"RACKS", cls:"brand-racks",
+    cats:CATS_RACKS, measures:MEASURES_RACKS,
+    draftKey:"qscv-audit-draft-v1", bookKey:"qscv-store-emails-v1",
+    areas:["North","South"],
+    branches:[
+      {name:"SM Pampanga",    area:"North", stype:"Mall"},
+      {name:"SM North EDSA",  area:"North", stype:"Mall"},
+      {name:"Trinoma",        area:"North", stype:"Mall"},
+      {name:"Timog",          area:"North", stype:"Free standing"},
+      {name:"Greenhills",     area:"North", stype:"Mall"},
+      {name:"Tiendesitas",    area:"North", stype:"Free standing"},
+      {name:"Glorietta (G2)", area:"South", stype:"Free standing"},
+      {name:"Magallanes",     area:"South", stype:"Free standing"},
+      {name:"NAIA T3",        area:"South", stype:"Mall"},
+      {name:"Ermita",         area:"South", stype:"Free standing"},
+      {name:"MOA",            area:"South", stype:"Mall"},
+      {name:"Southmall",      area:"South", stype:"Mall"},
+      {name:"Sta. Rosa",      area:"South", stype:"Free standing"},
+      {name:"Festival",       area:"South", stype:"Mall"}
+    ]
+  },
+  tenya: {
+    label:"Tenya", cls:"brand-tenya",
+    cats:CATS_TENYA, measures:MEASURES_TENYA,
+    draftKey:"qscv-audit-draft-tenya-v1", bookKey:"qscv-store-emails-tenya-v1",
+    areas:["Express","Full store"],
+    branches:[
+      {name:"Tenya Express Market! Market!", area:"Express",    stype:"Mall"},
+      {name:"Tenya Express Mitsukoshi",      area:"Express",    stype:"Mall"},
+      {name:"Tenya SM Southmall",            area:"Full store", stype:"Mall"},
+      {name:"Tenya Festival Mall",           area:"Full store", stype:"Mall"},
+      {name:"Tenya Glorietta 2",             area:"Full store", stype:"Mall"},
+      {name:"Tenya Tiendesitas",             area:"Full store", stype:"Free standing"},
+      {name:"Tenya Paseo De Magallanes",     area:"Full store", stype:"Free standing"}
+    ]
+  }
+};
+
+/* The scoring code below reads bare CATS / MEASURES, so the active brand is
+   swapped in here rather than threaded through every call site. */
+let CATS     = BRANDS.tenya.cats;
+let MEASURES = BRANDS.tenya.measures;
+function applyBrand(b){ CATS = BRANDS[b].cats; MEASURES = BRANDS[b].measures; }
+
+const KEY  = b => BRANDS[b].draftKey;
+const BOOK = b => BRANDS[b].bookKey;
+const BRAND_KEY = "qscv-audit-brand-v1";
 const ORDER = ["home","cats","list","summary","sign","export"];
 
 class Component extends DCLogic {
   constructor(p){
     super(p);
     this.state = {
-      screen:"home", role:"Auditor", cat:null,
-      scores:{}, ev:{}, open:{}, sheet:null,
-      meta:{branch:"SM North EDSA", date:"2026-09-01", time:"11:30", auditor:"A. Sabanilla", mod:"J. Cruz", stype:"Mall", highlights:""},
+      screen:"home", role:"Auditor", cat:null, brand:"tenya",
+      scores:{}, ev:{}, open:{}, step:{}, sheet:null,
+      meta:{branch:"Tenya Glorietta 2", date:"2026-09-01", time:"11:30", auditor:"A. Sabanilla", mod:"J. Cruz", stype:"Mall", highlights:""},
       speed:{}, daypart:"Lunch", timing:null, clock:0,
       signed:{a:false,b:false}, dest:"pdf", toast:null, savedAt:null,
       mailBusy:false, mailProgress:"", mailSentAt:null, mailWarned:false, mailResult:null, mailReady:false,
@@ -754,13 +1041,19 @@ class Component extends DCLogic {
     this.drawing = null;
   }
   componentDidMount(){
+    let brand = "tenya";
+    try{ brand = localStorage.getItem(BRAND_KEY) || "tenya"; }catch(e){}
+    if(!BRANDS[brand]) brand = "tenya";
+    applyBrand(brand);
     try{
-      const raw = localStorage.getItem(KEY);
-      if(raw){ const s = JSON.parse(raw); this.setState(Object.assign({}, s, {toast:null, timing:null, sheet:null})); }
-    }catch(e){}
+      const raw = localStorage.getItem(KEY(brand));
+      const s = raw ? JSON.parse(raw) : {};
+      this.setState(Object.assign({}, s, {brand, toast:null, timing:null, sheet:null}));
+    }catch(e){ this.setState({brand}); }
     import("./qscv-history.js").then(H=>{
       let live = [];
-      try{ const raw2 = localStorage.getItem(H.ARCHIVE_KEY); if(raw2) live = JSON.parse(raw2)||[]; }catch(e){}
+      const ak = (H.ARCHIVE_KEYS && H.ARCHIVE_KEYS[this.state.brand]) || H.ARCHIVE_KEY;
+      try{ const raw2 = localStorage.getItem(ak); if(raw2) live = JSON.parse(raw2)||[]; }catch(e){}
       this.setState({hist:H, live});
     }).catch(()=>{});
     this.loadStoreBook();
@@ -790,6 +1083,15 @@ class Component extends DCLogic {
   componentWillUnmount(){
     ["_offAuth","_offStat","_offBr","_offAud"].forEach(k=>{ if(this[k]) this[k](); });
   }
+  /* The active brand's stores: whatever Firestore holds for that brand, or
+     the built-in roster before the config doc exists. */
+  roster(){
+    const s = this.state;
+    const cloud = (s.branches || []).filter(b => (b.brand || "racks") === s.brand);
+    if(cloud.length) return cloud;
+    const tagged = (s.cloud && s.cloud.getBranchesFor) ? s.cloud.getBranchesFor(s.brand) : [];
+    return tagged.length ? tagged : BRANDS[s.brand].branches;
+  }
   /* This device's archive plus everything other auditors have submitted. */
   allRecords(){
     const C = this.state.cloud;
@@ -813,9 +1115,10 @@ class Component extends DCLogic {
     const T = this.totals(), s = this.state;
     const cats = {};
     T.rows.forEach(r=>{ cats[r.c.num] = r.st.pct===null ? null : Math.round(r.st.pct*100)/100; });
-    const b = H.BRANCHES.filter(x=>x.name===s.meta.branch)[0];
+    const roster = (H.BRANDS && H.BRANDS[s.brand]) ? H.BRANDS[s.brand].branches : (H.BRANCHES||[]);
+    const b = roster.filter(x=>x.name===s.meta.branch)[0] || BRANDS[s.brand].branches.filter(x=>x.name===s.meta.branch)[0];
     const dev = this.deviations();
-    const rec = {branch:s.meta.branch, area: b?b.area:"North", stype:s.meta.stype, date:s.meta.date,
+    const rec = {brand:s.brand, branch:s.meta.branch, area: b?b.area:BRANDS[s.brand].areas[0], stype:s.meta.stype, date:s.meta.date,
       cats, score: Math.round(T.score*10)/10, crit:this.criticalFails(),
       grade: this.grade(T.weightSeen ? T.score / T.weightSeen * 100 : 0, this.criticalFails()).name,
       dev:{H:dev.d.H, M:dev.d.M, L:dev.d.L}, critical:this.criticalFails()>=5,
@@ -841,13 +1144,14 @@ class Component extends DCLogic {
      phone and outside the draft, so it survives starting a new audit and the
      next visit to that store is prefilled. */
   storeEmails(){ return (this.state.storeBook || {})[this.state.meta.branch] || []; }
-  loadStoreBook(){
-    try{ this.setState({storeBook: JSON.parse(localStorage.getItem(BOOK) || "{}") || {}}); }catch(e){}
+  loadStoreBook(brand){
+    const b = brand || this.state.brand;
+    try{ this.setState({storeBook: JSON.parse(localStorage.getItem(BOOK(b)) || "{}") || {}}); }catch(e){}
   }
   saveStoreBook(list){
     const book = Object.assign({}, this.state.storeBook, {[this.state.meta.branch]: list});
     this.setState({storeBook: book});
-    try{ localStorage.setItem(BOOK, JSON.stringify(book)); }catch(e){}
+    try{ localStorage.setItem(BOOK(this.state.brand), JSON.stringify(book)); }catch(e){}
   }
   addStoreEmail(){
     const raw = (this.state.emailDraft || "").trim();
@@ -885,10 +1189,10 @@ class Component extends DCLogic {
     if(!s.cUser){ this.flash("Sign in first — the report is sent from the QSCV mailbox, not this phone."); return; }
     const T = this.totals();
     const dev = this.deviations();
-    const b = (s.branches||[]).filter(x=>x.name===s.meta.branch)[0]
-      || (s.hist ? s.hist.BRANCHES.filter(x=>x.name===s.meta.branch)[0] : null);
+    const b = this.roster().filter(x=>x.name===s.meta.branch)[0]
+      || BRANDS[s.brand].branches.filter(x=>x.name===s.meta.branch)[0];
     const rec = {
-      branch:s.meta.branch, area: b?b.area:"", stype:s.meta.stype, date:s.meta.date,
+      brand:s.brand, branch:s.meta.branch, area: b?b.area:"", stype:s.meta.stype, date:s.meta.date,
       score: Math.round(T.score*10)/10, crit:this.criticalFails(),
       grade: this.grade(T.weightSeen ? T.score / T.weightSeen * 100 : 0, this.criticalFails()).name,
       dev:{H:dev.d.H, M:dev.d.M, L:dev.d.L}, critical:this.criticalFails()>=5,
@@ -917,7 +1221,7 @@ class Component extends DCLogic {
     const m = this.state.meta;
     const today = new Date().toISOString().slice(0,10);
     this.setState({
-      screen:"home", cat:null, scores:{}, ev:{}, open:{}, sheet:null,
+      screen:"home", cat:null, scores:{}, ev:{}, open:{}, step:{}, sheet:null,
       speed:{}, daypart:"Lunch", timing:null, clock:0,
       signed:{a:false,b:false}, dest:"pdf", savedAt:null,
       mailBusy:false, mailProgress:"", mailSentAt:null, mailWarned:false, mailResult:null,
@@ -928,15 +1232,34 @@ class Component extends DCLogic {
   componentDidUpdate(){ this.persist(); }
   persist(){
     if(this._pt) return;
-    this._pt = setTimeout(()=>{
-      this._pt = null;
-      try{
-        const s = this.state;
-        const evLight = {};
-        Object.keys(s.ev).forEach(k=>{ const v=s.ev[k]; evLight[k]={photos:v.photos||0,note:v.note||"",capa:v.capa||"",repeat:!!v.repeat}; });
-        localStorage.setItem(KEY, JSON.stringify({screen:s.screen,role:s.role,cat:s.cat,scores:s.scores,ev:evLight,open:s.open,meta:s.meta,speed:s.speed,daypart:s.daypart,signed:s.signed,dest:s.dest,savedAt:Date.now()}));
-      }catch(e){}
-    }, 400);
+    this._pt = setTimeout(()=>{ this._pt = null; this.persistNow(); }, 400);
+  }
+  persistNow(){
+    clearTimeout(this._pt); this._pt = null;
+    try{
+      const s = this.state;
+      const evLight = {};
+      Object.keys(s.ev).forEach(k=>{ const v=s.ev[k]; evLight[k]={photos:v.photos||0,note:v.note||"",capa:v.capa||"",repeat:!!v.repeat}; });
+      localStorage.setItem(KEY(s.brand), JSON.stringify({screen:s.screen,role:s.role,cat:s.cat,scores:s.scores,ev:evLight,open:s.open,step:s.step,meta:s.meta,speed:s.speed,daypart:s.daypart,signed:s.signed,dest:s.dest,savedAt:Date.now()}));
+    }catch(e){}
+  }
+  /* Park the current brand's draft, then bring the other brand's forward. */
+  switchBrand(b){
+    if(b === this.state.brand || !BRANDS[b]) return;
+    this.persistNow();
+    applyBrand(b);
+    try{ localStorage.setItem(BRAND_KEY, b); }catch(e){}
+    let saved = null;
+    try{ const raw = localStorage.getItem(KEY(b)); if(raw) saved = JSON.parse(raw); }catch(e){}
+    const fresh = {
+      screen:"home", cat:null, scores:{}, ev:{}, open:{}, step:{}, sheet:null,
+      speed:{}, daypart:"Lunch", timing:null, signed:{a:false,b:false},
+      savedAt:null, mailSentAt:null, mailResult:null, mailWarned:false,
+      meta: Object.assign({}, this.state.meta, {branch:BRANDS[b].branches[0].name, mod:"", highlights:""})
+    };
+    this.setState(Object.assign({}, fresh, saved || {}, {brand:b, toast:null, timing:null, sheet:null, screen:"home"}));
+    this.loadStoreBook(b);
+    this.flash(saved ? BRANDS[b].label+" form loaded — your saved draft is back." : BRANDS[b].label+" form loaded.");
   }
   flash(msg){ clearTimeout(this._tt); this.setState({toast:msg}); this._tt = setTimeout(()=>this.setState({toast:null}), 2600); }
 
@@ -1108,9 +1431,11 @@ class Component extends DCLogic {
       };
     });
 
+    const stepMode = !!cat && !cat.speed && cat.groups.length >= 6;
+    const stepIdx = stepMode ? Math.min((s.step||{})[cat.num] || 0, cat.groups.length-1) : 0;
     const groups = cat && !cat.speed ? cat.groups.map((gr,gi)=>{
       const key = cat.num+"."+gi;
-      const isOpen = s.open[key]!==undefined ? s.open[key] : gi===0;
+      const isOpen = stepMode ? true : (s.open[key]!==undefined ? s.open[key] : gi===0);
       let a=0,p=0,d=0;
       gr.items.forEach((it,ii)=>{ const v=s.scores[cat.num+"."+gi+"."+ii]; if(!v) return; d++; if(v==="NA") return; p+=PTS[it[0]]; if(v==="Y") a+=PTS[it[0]]; });
       const pct = p? Math.round(a/p*100) : null;
@@ -1119,8 +1444,8 @@ class Component extends DCLogic {
         progress:d+"/"+gr.items.length,
         pctLabel: pct===null?"—":pct+"%",
         color: pct===null?"var(--color-neutral-500)":(pct>=91?"var(--color-accent-700)":pct>=80?"var(--color-accent-500)":"var(--color-accent-900)"),
-        headStyle:"width:100%;display:flex;align-items:center;gap:8px;padding:11px 18px;background:"+(isOpen?"var(--color-neutral-200)":"transparent")+";border:0;border-bottom:1px solid var(--color-divider);cursor:pointer;font-family:var(--font-body);color:inherit",
-        toggle: ()=>{ const o=Object.assign({},s.open); o[key]=!isOpen; this.setState({open:o}); },
+        headStyle: stepMode ? "display:none" : "width:100%;display:flex;align-items:center;gap:8px;padding:11px 18px;background:"+(isOpen?"var(--color-neutral-200)":"transparent")+";border:0;border-bottom:1px solid var(--color-divider);cursor:pointer;font-family:var(--font-body);color:inherit",
+        toggle: ()=>{ if(stepMode) return; const o=Object.assign({},s.open); o[key]=!isOpen; this.setState({open:o}); },
         items: gr.items.map((it,ii)=>{
           const k = cat.num+"."+gi+"."+ii;
           const v = s.scores[k];
@@ -1145,7 +1470,11 @@ class Component extends DCLogic {
           };
         })
       };
-    }) : [];
+    }).filter((g,gi)=>!stepMode || gi===stepIdx) : [];
+
+    const setStep = n => { const st=Object.assign({}, s.step||{}); st[cat.num]=n; this.setState({step:st}); };
+    const stepDoneCount = stepMode ? (()=>{ let d=0; const gr=cat.groups[stepIdx];
+      gr.items.forEach((it,ii)=>{ if(s.scores[cat.num+"."+stepIdx+"."+ii]) d++; }); return d+" of "+gr.items.length+" scored"; })() : "";
 
     const measures = MEASURES.map(m=>{
       const arr = s.speed[m.id]||[];
@@ -1263,7 +1592,7 @@ class Component extends DCLogic {
       canGoBack: s.screen!=="home" && s.screen!=="cats",
       goBack: ()=> this.go(s.screen==="list"||s.screen==="speed" ? "cats" : ORDER[Math.max(0,ORDER.indexOf(s.screen)-1)]),
       headKicker: {home:"Details of the audit", cats:"QSCV audit score summary", list:"Category "+(cat?cat.num:""), speed:"Category VIII · Speed standards", summary:"Score summary", sign:"Closing the audit", export:"Submit"}[s.screen],
-      headTitle: {home:(s.meta.branch||"Branch"), cats:"Nine categories", list:(cat?cat.name:""), speed:"Speed of Service", summary:"Grade & deviations", sign:"Signatures", export:"Report package"}[s.screen],
+      headTitle: {home:(s.meta.branch||"Branch"), cats:BRANDS[s.brand].label+" · nine categories", list:(cat?cat.name:""), speed:"Speed of Service", summary:"Grade & deviations", sign:"Signatures", export:"Report package"}[s.screen],
       totalLabel: T.weightSeen ? projected.toFixed(1) : "—",
       totalPct: Math.min(100,projected)+"%",
       showMeter: scoreDisplay==="Running total with grade meter",
@@ -1278,6 +1607,11 @@ class Component extends DCLogic {
       navIsList: navStyle==="Weighted list", navIsGrid: navStyle==="Grid tiles",
       vizIsBars: viz==="Weighted bars", vizIsDial: viz==="Per-category dials", vizIsTable: viz==="Spreadsheet table",
       cats, groups, measures, tabs,
+      stepMode,
+      stepLabel: stepMode ? (cat.groups[stepIdx].name + " · " + (stepIdx+1) + " of " + cat.groups.length) : "",
+      stepDone: stepDoneCount,
+      stepFirst: stepMode && stepIdx===0, stepLast: stepMode && stepIdx===cat.groups.length-1,
+      stepPrev: ()=>setStep(Math.max(0, stepIdx-1)), stepNext: ()=>setStep(Math.min(cat.groups.length-1, stepIdx+1)),
       catFooter: cat ? cat.weight+"% of the audit grade · High 10 · Medium 5 · Low 1 pts" : "",
       criticalFail: cf>=5, cfCount: cf,
       devLine: dev.total ? dev.total+" deviations · "+dev.pts+" points lost" : "No deviations logged yet",
@@ -1323,7 +1657,7 @@ class Component extends DCLogic {
       destPdf:s.dest==="pdf", destXls:s.dest==="xls", destBoth:s.dest==="both",
       setDestPdf:()=>this.setState({dest:"pdf"}), setDestXls:()=>this.setState({dest:"xls"}), setDestBoth:()=>this.setState({dest:"both"}),
       exportNote: {pdf:"The PDF mirrors the audit form: cover, weighted summary, one sheet per category with Y/N/N-A marks, then the deviation log with photos.",
-        xls:"The workbook writes back into the same tabs as RACKS_QSCV_Audit_Form — SUMMARY, CAT I PQ, CAT II-VI FS, CAT VII FOH, CAT VIII SOS, CAT IX RECORDS.",
+        xls:"The workbook writes back into the same tabs as TENYA QSCV Audit Form — SUMMARY, CAT I PQ, CAT I PQ 2, CAT II-VI FS, CAT VII FOH, CAT VIII SOS, CAT IX RECORDS.",
         both:"Both files, plus each logged deviation becomes a dated CAPA task assigned to the branch MOD."}[s.dest],
       primaryLabel: primary.label, primaryAction: primary.act,
       platformLabel: platform==="iOS" ? "iPhone 15 · 390 × 844" : "Android · 390 × 844",
@@ -1331,7 +1665,18 @@ class Component extends DCLogic {
       toast: s.toast,
 
       /* ---- cloud / identity ---- */
-      branchList: (s.branches || []).map(b=>({name:b.name, label:b.name+" · "+b.area})),
+      brandClass: BRANDS[s.brand].cls,
+      brandOpts: Object.keys(BRANDS).map(k=>({
+        label: BRANDS[k].label,
+        style: "flex:1;min-height:44px;cursor:pointer;border:1px solid "
+          + (k===s.brand ? "var(--color-text)" : "var(--color-divider)")
+          + ";background:" + (k===s.brand ? "var(--color-text)" : "transparent")
+          + ";color:" + (k===s.brand ? "var(--color-bg)" : "var(--color-neutral-800)")
+          + ";font:600 12px/1 var(--font-body);letter-spacing:.1em;text-transform:uppercase",
+        pick: ()=>this.switchBrand(k)
+      })),
+      brandNote: BRANDS[s.brand].label+" question set · "+BRANDS[s.brand].branches.length+" stores. Switching keeps each brand's draft separately.",
+      branchList: this.roster().map(b=>({name:b.name, label:b.name+" · "+(b.area||"")})),
       cloudLabel: s.cloud ? (({connecting:"Connecting",live:"Synced",offline:"Offline","signed-out":"Local only",error:"Sync error"})[s.cStatus] || "Local only") : "Local only",
       hasCloudNote: !!s.cNote,
       cloudNote: s.cNote || "",

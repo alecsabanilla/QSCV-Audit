@@ -14,16 +14,35 @@ export const CONFIG = {
   measurementId: "G-M556K23K3S"
 };
 
-/* Fallback Tenya branch list — used until config/branchesTenya exists in Firestore. */
-export const FALLBACK_BRANCHES = [
-  {name:"Tenya Express Market! Market!", area:"Express"},
-  {name:"Tenya Express Mitsukoshi", area:"Express"},
-  {name:"Tenya SM Southmall", area:"Full store"},
-  {name:"Tenya Festival Mall", area:"Full store"},
-  {name:"Tenya Glorietta 2", area:"Full store"},
-  {name:"Tenya Tiendesitas", area:"Full store"},
-  {name:"Tenya Paseo De Magallanes", area:"Full store"}
-];
+/* Fallback rosters — used until the config docs exist in Firestore.
+   config/branches holds RACKS, config/branchesTenya holds Tenya. */
+export const BRANCH_DOCS = {racks:"branches", tenya:"branchesTenya"};
+
+export const FALLBACK_BY_BRAND = {
+  racks: [
+    {name:"SM Pampanga", area:"North"}, {name:"SM North EDSA", area:"North"},
+    {name:"Trinoma", area:"North"}, {name:"Timog", area:"North"},
+    {name:"Greenhills", area:"North"}, {name:"Tiendesitas", area:"North"},
+    {name:"Glorietta (G2)", area:"South"}, {name:"Magallanes", area:"South"},
+    {name:"NAIA T3", area:"South"}, {name:"Ermita", area:"South"},
+    {name:"MOA", area:"South"}, {name:"Southmall", area:"South"},
+    {name:"Sta. Rosa", area:"South"}, {name:"Festival", area:"South"}
+  ],
+  tenya: [
+    {name:"Tenya Express Market! Market!", area:"Express"},
+    {name:"Tenya Express Mitsukoshi", area:"Express"},
+    {name:"Tenya SM Southmall", area:"Full store"},
+    {name:"Tenya Festival Mall", area:"Full store"},
+    {name:"Tenya Glorietta 2", area:"Full store"},
+    {name:"Tenya Tiendesitas", area:"Full store"},
+    {name:"Tenya Paseo De Magallanes", area:"Full store"}
+  ]
+};
+
+const tag = (list, brand) => (list||[]).map(b => Object.assign({brand}, b));
+
+export const FALLBACK_BRANCHES = tag(FALLBACK_BY_BRAND.racks,"racks")
+  .concat(tag(FALLBACK_BY_BRAND.tenya,"tenya"));
 
 let M = null;            // loaded firebase modules
 let app, auth, db;
@@ -34,7 +53,9 @@ let status = "connecting";
 let statusNote = "";
 
 const subs = {auth:new Set(), audits:new Set(), status:new Set(), branches:new Set()};
-let branches = FALLBACK_BRANCHES;
+const byBrand = {racks: tag(FALLBACK_BY_BRAND.racks,"racks"), tenya: tag(FALLBACK_BY_BRAND.tenya,"tenya")};
+let branches = byBrand.racks.concat(byBrand.tenya);
+const flatten = () => { branches = byBrand.racks.concat(byBrand.tenya); };
 
 const emit = (k, v) => subs[k].forEach(f => { try{ f(v); }catch(e){} });
 const setStatus = (s, note) => { status = s; statusNote = note || ""; emit("status", {status, note:statusNote}); };
@@ -44,6 +65,9 @@ export const getUser    = () => user;
 export const getProfile = () => profile;
 export const getAudits  = () => audits;
 export const getBranches= () => branches;
+/* The branch roster for one brand — cloud when the config doc exists, the
+   built-in list otherwise. */
+export const getBranchesFor = brand => byBrand[brand] ? byBrand[brand].slice() : [];
 export const isManager  = () => !!profile && profile.role === "manager";
 
 export function onAuth(cb){ subs.auth.add(cb); cb({user, profile}); return () => subs.auth.delete(cb); }
@@ -185,13 +209,22 @@ function watchAudits(){
 }
 function watchBranches(){
   if(unBranches) return;
-  unBranches = M.onSnapshot(M.doc(db, "config", "branchesTenya"),
-    snap => {
-      const d = snap.data();
-      if(d && Array.isArray(d.list) && d.list.length){ branches = d.list; emit("branches", branches); }
-    },
-    () => {}
+  /* Both brands read their own document, so editing either roster in the
+     Firebase console reaches the app without a re-upload. */
+  const stops = Object.keys(BRANCH_DOCS).map(brand =>
+    M.onSnapshot(M.doc(db, "config", BRANCH_DOCS[brand]),
+      snap => {
+        const d = snap.data();
+        if(d && Array.isArray(d.list) && d.list.length){
+          byBrand[brand] = tag(d.list, brand);
+          flatten();
+          emit("branches", branches);
+        }
+      },
+      () => {}
+    )
   );
+  unBranches = () => stops.forEach(s => { try{ s(); }catch(e){} });
 }
 function stopWatch(){
   if(unAudits){ unAudits(); unAudits = null; }
