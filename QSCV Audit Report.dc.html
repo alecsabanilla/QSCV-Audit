@@ -96,13 +96,7 @@ doc-page:not(:defined){visibility:hidden}
 <thead><tr><th style="width:34px">Cat</th><th>Finding</th><th style="width:58px">Severity</th><th style="width:150px">Note &amp; corrective action</th><th style="width:44px">Photos</th></tr></thead>
 <tbody>
 <sc-for list="{{ devRows }}" as="d" hint-placeholder-count="6">
-<tr><td style="color:var(--color-neutral-600)">{{ d.num }}</td><td>{{ d.text }}</td><td style="font-weight:600">{{ d.sev }}</td><td style="color:var(--color-neutral-700)">{{ d.note }}<sc-if value="{{ d.hasShots }}">
-<div style="display:flex;gap:4px;margin-top:5px;flex-wrap:wrap">
-<sc-for list="{{ d.shots }}" as="p" hint-placeholder-count="2">
-<img src="{{ p.url }}" alt="" style="width:64px;height:48px;object-fit:cover;border:1px solid var(--color-accent-600);display:block">
-</sc-for>
-</div>
-</sc-if></td><td style="text-align:center">{{ d.photos }}</td></tr>
+<tr><td style="color:var(--color-neutral-600)">{{ d.num }}</td><td>{{ d.text }}</td><td style="font-weight:600">{{ d.sev }}</td><td style="color:var(--color-neutral-700)">{{ d.note }}<div style="margin-top:5px">{{ d.strip }}</div></td><td style="text-align:center">{{ d.photos }}</td></tr>
 </sc-for>
 </tbody>
 </table>
@@ -133,6 +127,86 @@ doc-page:not(:defined){visibility:hidden}
 <div style="font-size:9.5pt">{{ mod }}</div>
 </div>
 </div>
+<sc-if value="{{ hasCapa }}" hint-placeholder-val="{{ true }}">
+<div style="break-before:page;padding-top:2px">
+
+<div style="display:grid;grid-template-columns:1fr auto;border:1px solid var(--color-text);font-size:8pt;margin-bottom:14px">
+<div style="padding:8px 10px;border-right:1px solid var(--color-text)">
+<div style="font:600 9.5pt/1.25 var(--font-heading)">CAVALLINO INC. &amp; TENCAV CORP.</div>
+<div style="font:600 8.5pt/1.3 var(--font-body);letter-spacing:.08em;text-transform:uppercase;margin-top:3px">Corrective Action and Preventive Action Plan</div>
+</div>
+<div style="display:grid;grid-template-columns:auto auto">
+<div style="padding:3px 8px;border-bottom:1px solid var(--color-divider)">Reference No.</div><div style="padding:3px 8px;border-bottom:1px solid var(--color-divider);border-left:1px solid var(--color-divider)">QSCV-1.01</div>
+<div style="padding:3px 8px;border-bottom:1px solid var(--color-divider)">Revision</div><div style="padding:3px 8px;border-bottom:1px solid var(--color-divider);border-left:1px solid var(--color-divider)">0</div>
+<div style="padding:3px 8px;border-bottom:1px solid var(--color-divider)">Effective Date</div><div style="padding:3px 8px;border-bottom:1px solid var(--color-divider);border-left:1px solid var(--color-divider)">March 13, 2026</div>
+<div style="padding:3px 8px">Prepared</div><div style="padding:3px 8px;border-left:1px solid var(--color-divider)">{{ date }}</div>
+</div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:0 24px;border-top:1px solid var(--color-text);border-bottom:1px solid var(--color-text);padding:10px 0;margin-bottom:10px;font-size:9pt">
+<div style="display:flex;justify-content:space-between;gap:10px;padding:3px 0;border-bottom:1px solid var(--color-divider)"><b style="font-weight:600">Store / Branch</b><span>{{ branch }}</span></div>
+<div style="display:flex;justify-content:space-between;gap:10px;padding:3px 0;border-bottom:1px solid var(--color-divider)"><b style="font-weight:600">Prepared by</b><span style="flex:1;border-bottom:1px solid var(--color-neutral-400);margin-left:10px"></span></div>
+<div style="display:flex;justify-content:space-between;gap:10px;padding:3px 0;border-bottom:1px solid var(--color-divider)"><b style="font-weight:600">Auditor/s</b><span>{{ auditor }}</span></div>
+<div style="display:flex;justify-content:space-between;gap:10px;padding:3px 0;border-bottom:1px solid var(--color-divider)"><b style="font-weight:600">Date prepared</b><span style="flex:1;border-bottom:1px solid var(--color-neutral-400);margin-left:10px"></span></div>
+<div style="display:flex;justify-content:space-between;gap:10px;padding:3px 0"><b style="font-weight:600">Inspection date/s</b><span>{{ date }}</span></div>
+<div style="display:flex;justify-content:space-between;gap:10px;padding:3px 0;font-size:8pt;color:var(--color-neutral-600)"><span>Name &amp; designation of the store's authorised representative</span></div>
+</div>
+
+<div style="font-size:8.5pt;line-height:1.5;color:var(--color-neutral-700);margin-bottom:8px"><b style="font-weight:600">Note:</b> store to fill columns 4 to 6. {{ capaNote }}</div>
+
+<table class="qr-t" style="font-size:7.5pt">
+<thead>
+<tr>
+<th style="width:22px">No.<br>(1)</th>
+<th>Description of deviation<br>(2)</th>
+<th style="width:96px">Pictures of deviation<br>(3)</th>
+<th style="width:104px">Corrective &amp; preventive action<br>(4)</th>
+<th style="width:80px">Evidence of compliance<br>(5)</th>
+<th style="width:58px">Completion date<br>(6)</th>
+<th style="width:72px">Auditor's comment<br>(7)</th>
+<th style="width:44px">Status<br>(8)</th>
+</tr>
+</thead>
+<tbody>
+<sc-for list="{{ capaGroups }}" as="g" hint-placeholder-count="3">
+<tr><td colspan="8" style="font:600 8pt/1.3 var(--font-body);letter-spacing:.1em;text-transform:uppercase;color:var(--color-bg);background:var(--color-accent-900);padding:4px 6px">{{ g.band }} · {{ g.count }}</td></tr>
+<sc-for list="{{ g.rows }}" as="d" hint-placeholder-count="4">
+<tr>
+<td style="text-align:center;color:var(--color-neutral-600);vertical-align:top;padding:5px 4px">{{ d.n }}</td>
+<td style="vertical-align:top;padding:5px 6px">{{ d.text }}<div style="font-size:7pt;color:var(--color-neutral-600);margin-top:3px">{{ d.cat }}</div></td>
+<td style="vertical-align:top;padding:5px 4px">
+{{ d.strip }}
+<sc-if value="{{ d.noShots }}"><span style="color:var(--color-neutral-500)">No photo</span></sc-if>
+</td>
+<td style="height:46px"></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</sc-for>
+</sc-for>
+</tbody>
+</table>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:18px;break-inside:avoid">
+<div class="blueprint" style="padding:14px">
+<i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+<div style="font:600 8pt/1 var(--font-body);letter-spacing:.12em;text-transform:uppercase;color:var(--color-accent-700)">Reviewed by · QSCV Auditor</div>
+<div style="height:40px;border-bottom:1px solid var(--color-text);margin:10px 0 6px"></div>
+<div style="font-size:9pt">{{ auditor }} · {{ date }}</div>
+</div>
+<div class="blueprint" style="padding:14px">
+<i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+<div style="font:600 8pt/1 var(--font-body);letter-spacing:.12em;text-transform:uppercase;color:var(--color-accent-700)">Noted by · QSCV Lead</div>
+<div style="height:40px;border-bottom:1px solid var(--color-text);margin:10px 0 6px"></div>
+<div style="font-size:9pt;color:var(--color-neutral-600)">Name, signature and date</div>
+</div>
+</div>
+
+</div>
+</sc-if>
+
 <div style="font-size:8.5pt;line-height:1.5;color:var(--color-neutral-600);margin-top:10px;padding-top:10px;border-top:1px solid var(--color-divider)">QSCV Department · confidential · generated {{ generated }}. Signatures were captured on the auditing device. Deviations marked High risk become Critical CAPA tasks due within 24 hours; Major within 7 days; Minor at the next audit cycle.</div>
 
 </div>
@@ -147,8 +221,9 @@ class Component extends DCLogic {
       try{ const raw = localStorage.getItem(D.KEY); if(raw) draft = JSON.parse(raw); }catch(e){}
       this.setState({data:D, draft:draft||{}});
     });
-    import("./qscv-photos.js")
-      .then(P=>P.loadAll())
+    /* Evidence is stored per brand — load the one the app last used. */
+    import("./qscv-data.js").then(D=>
+      import("./qscv-photos.js").then(P=>P.loadAll(D.BRAND)))
       .then(shots=>this.setState({shots}))
       .catch(()=>{});
   }
@@ -215,9 +290,15 @@ class Component extends DCLogic {
       if(e.capa) bits.push("CAPA: "+e.capa);
       if(e.repeat) bits.push("Repeat finding.");
       const shots = ((this.state.shots||{})[k] || []).filter(Boolean);
-      devRows.push({num:c.num, text:it[1], sev:SEV[it[0]], note: bits.length? bits.join(" — ") : "—",
+      const strip = (w,h) => shots.length ? React.createElement("div",
+        {style:{display:"flex",gap:w>50?"4px":"3px",flexWrap:"wrap"}},
+        shots.map((url,i)=>React.createElement("img",{key:i, src:url, alt:"",
+          style:{width:w+"px",height:h+"px",objectFit:"cover",
+                 border:"1px solid var(--color-accent-600)",display:"block"}}))) : null;
+      devRows.push({num:c.num, text:it[1], sev:SEV[it[0]], risk:it[0], rawNote: e.note||"", note: bits.length? bits.join(" — ") : "—",
         photos: shots.length ? String(shots.length) : (e.photos? String(e.photos) : "—"),
-        shots: shots.map(url=>({url})), hasShots: shots.length>0});
+        shots: shots.map(url=>({url})), hasShots: shots.length>0,
+        strip: strip(64,48), capaStrip: strip(44,34)});
     }));});
 
     const speedRows = MEASURES.map(m=>{
@@ -250,8 +331,26 @@ class Component extends DCLogic {
       });
     });
 
+    /* CAPA plan — one numbered row per deviation, banded by severity, with
+       columns 4 to 6 left empty for the store to complete. */
+    let capaN = 0;
+    const capaGroups = [["H","CRITICAL"],["M","MAJOR"],["L","MINOR"]].map(([risk,band])=>{
+      const rows = devRows.filter(d=>d.risk===risk).map(d=>{
+        capaN++;
+        /* The sample form describes the failure, so the auditor's own note
+           leads and the checklist wording sits underneath as the reference. */
+        return {n:String(capaN), text: d.rawNote || d.text, strip:d.capaStrip, hasShots:d.hasShots,
+          noShots:!d.hasShots, cat: d.rawNote ? "Cat "+d.num+" · "+d.text : "Cat "+d.num};
+      });
+      return {band, rows, has:rows.length>0, count:rows.length+(rows.length===1?" deviation":" deviations")};
+    }).filter(g=>g.has);
+
     const now = new Date();
     return {
+      capaGroups,
+      hasCapa: capaGroups.length>0,
+      capaCount: capaN,
+      capaNote: capaN+(capaN===1?" deviation":" deviations")+" carried over from the audit; columns 7 and 8 are for the auditor.",
       brandClass,
       branch: meta.branch||"—", stype: meta.stype||"—", date: meta.date||"—", time: meta.time||"—",
       auditor: meta.auditor||"—", mod: meta.mod||"—",

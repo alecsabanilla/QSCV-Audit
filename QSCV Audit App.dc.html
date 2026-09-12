@@ -47,7 +47,7 @@ a:hover{color:var(--color-accent-700)}
 <div class="qs-aside" style="width:330px;flex:none;display:flex;flex-direction:column;gap:24px;position:sticky;top:44px">
 <div>
 <div style="font:600 10px/1 var(--font-body);letter-spacing:.14em;text-transform:uppercase;color:var(--color-accent-700);margin-bottom:10px">QSCV Department · Mobile</div>
-<h2 style="font-size:34px;margin:0 0 8px">Cavallino QSCV<br>Audit — field app</h2>
+<h2 style="font-size:34px;margin:0 0 8px">QSCV Audit<br>— field app</h2>
 <p style="font-size:13px;line-height:1.6;color:var(--color-neutral-700);margin:0">One field app for both brands. Pick RACKS or Tenya on the setup screen and the whole form swaps — questions, branch list and colour. Nine weighted categories are scored Y / N / N-A at each item's assigned risk level, evidence is captured at the point of observation, and the grade is calculated in real time. Each brand keeps its own draft, so switching never loses work.</p>
 </div>
 
@@ -419,7 +419,7 @@ a:hover{color:var(--color-accent-700)}
 <div style="flex:1;border:1px solid var(--color-divider);padding:8px"><div style="font:600 22px/1 var(--font-heading)">{{ majorCount }}</div><div style="font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--color-neutral-600)">Major · 5</div></div>
 <div style="flex:1;border:1px solid var(--color-accent-700);padding:8px;background:var(--color-accent-100)"><div style="font:600 22px/1 var(--font-heading);color:var(--color-accent-800)">{{ criticalCount }}</div><div style="font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--color-accent-700)">Critical · 10</div></div>
 </div>
-<div style="font-size:11px;color:var(--color-neutral-600)">{{ devPoints }} deviation points lost across {{ devTotal }} findings. {{ evidenceLine }}</div>
+<div style="font-size:11px;color:var(--color-neutral-600)">{{ devPoints }} deviation points lost across {{ devTotal }}. {{ evidenceLine }}</div>
 </div>
 
 <div class="blueprint" style="padding:12px;display:flex;flex-direction:column;gap:8px">
@@ -468,8 +468,8 @@ a:hover{color:var(--color-accent-700)}
 <div style="font:600 9.5px/1 var(--font-body);letter-spacing:.14em;text-transform:uppercase;color:var(--color-accent-700)">Send to</div>
 <div style="display:flex;flex-direction:column;gap:8px">
 <label class="radio"><input type="radio" name="dest" checked="{{ destPdf }}" onChange="{{ setDestPdf }}"><span class="dot"></span>PDF, laid out like the audit form</label>
-<label class="radio"><input type="radio" name="dest" checked="{{ destXls }}" onChange="{{ setDestXls }}"><span class="dot"></span>Excel, same tabs as TENYA QSCV Audit Form</label>
-<label class="radio"><input type="radio" name="dest" checked="{{ destBoth }}" onChange="{{ setDestBoth }}"><span class="dot"></span>Both, plus CAPA tasks to the branch</label>
+<label class="radio"><input type="radio" name="dest" checked="{{ destXls }}" onChange="{{ setDestXls }}"><span class="dot"></span>Excel workbook, one tab per category</label>
+<label class="radio"><input type="radio" name="dest" checked="{{ destBoth }}" onChange="{{ setDestBoth }}"><span class="dot"></span>Both, workbook and printable report</label>
 </div>
 </div>
 <div style="font-size:11.5px;line-height:1.55;color:var(--color-neutral-600)">{{ exportNote }}</div>
@@ -1060,7 +1060,7 @@ class Component extends DCLogic {
     import("./qscv-mail.js").then(Ma=>{ this.mail = Ma; this.setState({mailReady:true}); }).catch(()=>{});
     import("./qscv-photos.js").then(P=>{
       this.photos = P;
-      return P.loadAll().then(map=>{
+      return P.migrate(brand).then(()=>P.loadAll(brand)).then(map=>{
         const ev = Object.assign({}, this.state.ev);
         Object.keys(map).forEach(k=>{
           const urls = map[k] || [];
@@ -1216,8 +1216,8 @@ class Component extends DCLogic {
   /* Clear the finished audit so the next one starts from a blank form.
      The submitted record stays in the archive / cloud; only the working draft is wiped. */
   startNew(){
-    try{ localStorage.removeItem(KEY); }catch(e){}
-    if(this.photos) this.photos.clearAll();
+    try{ localStorage.removeItem(KEY(this.state.brand)); }catch(e){}
+    if(this.photos) this.photos.clearAll(this.state.brand);
     const m = this.state.meta;
     const today = new Date().toISOString().slice(0,10);
     this.setState({
@@ -1259,6 +1259,21 @@ class Component extends DCLogic {
     };
     this.setState(Object.assign({}, fresh, saved || {}, {brand:b, toast:null, timing:null, sheet:null, screen:"home"}));
     this.loadStoreBook(b);
+    /* Evidence is stored per brand, so swap the photo set too. */
+    if(this.photos) this.photos.loadAll(b).then(map=>{
+      this.setState(st=>{
+        const ev = {};
+        Object.keys(st.ev||{}).forEach(k=>{
+          const v = st.ev[k];
+          ev[k] = {photos:0, note:v.note||"", capa:v.capa||"", repeat:!!v.repeat, urls:[]};
+        });
+        Object.keys(map).forEach(k=>{
+          const urls = map[k] || [];
+          ev[k] = Object.assign({note:"", capa:"", repeat:false}, ev[k], {urls, photos:urls.filter(Boolean).length});
+        });
+        return {ev};
+      });
+    }).catch(()=>{});
     this.flash(saved ? BRANDS[b].label+" form loaded — your saved draft is back." : BRANDS[b].label+" form loaded.");
   }
   flash(msg){ clearTimeout(this._tt); this.setState({toast:msg}); this._tt = setTimeout(()=>this.setState({toast:null}), 2600); }
@@ -1361,6 +1376,67 @@ class Component extends DCLogic {
     const speed = Object.assign({}, this.state.speed);
     const arr = (speed[m.id]||[]).slice(); arr.pop(); speed[m.id]=arr;
     this.setState({speed});
+  }
+  /* Everything the workbook needs, flattened out of the live draft. */
+  xlsxPayload(){
+    const s = this.state, T = this.totals();
+    const summary = T.rows.map(r=>{
+      const st = r.st, c = r.c;
+      return {num:c.num, name:c.name, weight:c.weight+"%", scored:st.done+"/"+st.total,
+        actual: st.pct===null?"—":st.actual, possible: st.pct===null?"—":st.possible,
+        pct: st.pct===null?"—":Math.round(st.pct*100)+"%",
+        weighted: st.pct===null?"—":Math.round(st.pct*c.weight*10)/10};
+    });
+    const sheets = CATS.map(c=>{
+      const st = this.catStats(c);
+      return {num:c.num, name:c.name, weight:c.weight+"%", speed:!!c.speed,
+        pct: st.pct===null?"not scored":Math.round(st.pct*100)+"%",
+        groups:(c.groups||[]).map((g,gi)=>({name:g.name, items:g.items.map((it,ii)=>{
+          const k = c.num+"."+gi+"."+ii, v = s.scores[k], e = s.ev[k]||{};
+          return {text:it[1], risk:CRIT[it[0]], pts:PTS[it[0]],
+            mark: v==="Y"?"Y":v==="N"?"N":v==="NA"?"N-A":"", note:e.note||"", capa:e.capa||""};
+        })}))};
+    });
+    const speed = MEASURES.map(m=>{
+      const arr = s.speed[m.id]||[];
+      return {name:m.name, std:m.std, taken:arr.length+"/"+m.n,
+        pass: arr.length? arr.filter(v=>v<=m.limit).length+"/"+arr.length : "—",
+        times: arr.length? arr.map(v=>this.fmt(v)).join(", ") : "not sampled",
+        points: this.measurePoints(m)+" / "+m.max};
+    });
+    const deviations = [], byBand = {H:[], M:[], L:[]};
+    CATS.forEach(c=>{ if(c.speed) return; c.groups.forEach((g,gi)=>g.items.forEach((it,ii)=>{
+      const k = c.num+"."+gi+"."+ii;
+      if(s.scores[k] !== "N") return;
+      const e = s.ev[k]||{};
+      const row = {cat:c.num, text:it[1], sev:SEV[it[0]], note:e.note||"", capa:e.capa||"",
+        photos:(e.urls||[]).filter(Boolean).length || e.photos || 0, repeat:!!e.repeat};
+      deviations.push(row); byBand[it[0]].push(row);
+    }));});
+    let n = 0; const capa = [];
+    [["H","CRITICAL"],["M","MAJOR"],["L","MINOR"]].forEach(pair=>{
+      byBand[pair[0]].forEach(d=>{ n++; capa.push({n:n, band:pair[1], text:d.note||d.text, photos:d.photos}); });
+    });
+    const cf = this.criticalFails();
+    return {brandLabel:BRANDS[s.brand].label, meta:s.meta, summary, sheets, speed, deviations, capa,
+      score: T.weightSeen ? Math.round(T.score/T.weightSeen*1000)/10 : "—",
+      weightSeen: T.weightSeen+"%", crit:cf, dev:this.deviations().d,
+      grade: this.grade(T.weightSeen ? T.score/T.weightSeen*100 : 0, cf).name};
+  }
+  exportWorkbook(){
+    const s = this.state;
+    const slug = v => String(v||"").replace(/[^A-Za-z0-9]+/g,"-").replace(/^-|-$/g,"");
+    this.flash("Building the workbook…");
+    return import("./qscv-xlsx.js").then(X=>{
+      const blob = X.buildAuditWorkbook(this.xlsxPayload());
+      X.downloadWorkbook(blob, [slug(BRANDS[s.brand].label), slug(s.meta.branch), slug(s.meta.date)]
+        .filter(Boolean).join("_") + "_QSCV.xlsx");
+      this.flash("Workbook downloaded.");
+    }).catch(()=>this.flash("Couldn't build the workbook — check you're online and try again."));
+  }
+  openPrintable(){
+    this.persist();
+    setTimeout(()=>{ try{ window.open(encodeURI("./QSCV Audit Report.dc.html"), "_blank"); }catch(e){} }, 500);
   }
   fmt(sec){ const s=Math.max(0,Math.round(sec)); return Math.floor(s/60)+"m "+String(s%60).padStart(2,"0")+"s"; }
   componentWillUnmount(){ clearInterval(this._ti); clearTimeout(this._tt); clearTimeout(this._pt); }
@@ -1536,7 +1612,7 @@ class Component extends DCLogic {
           const f = ev2.target.files && ev2.target.files[0];
           if(!f) return;
           if(this.photos){
-            this.photos.put(sheet.key, i, f).then(url=>{
+            this.photos.put(sheet.key, i, f, s.brand).then(url=>{
               const next = urls.slice(); next[i] = url;
               this.patchEv(sheet.key, {urls: next, photos: next.filter(Boolean).length});
               this.flash("Photo saved to this phone and attached to the finding.");
@@ -1555,7 +1631,7 @@ class Component extends DCLogic {
         onRemove: ev2=>{
           ev2.preventDefault(); ev2.stopPropagation();
           const next = urls.slice(); next[i] = null;
-          if(this.photos) this.photos.remove(sheet.key, i);
+          if(this.photos) this.photos.remove(sheet.key, i, s.brand);
           this.patchEv(sheet.key, {urls: next, photos: next.filter(Boolean).length});
           this.flash("Photo removed from this finding.");
         }
@@ -1580,7 +1656,16 @@ class Component extends DCLogic {
       speed:{label:"Back to categories", act:()=>this.go("cats")},
       summary:{label:"Proceed to sign-off", act:()=>this.go("sign")},
       sign:{label: (s.signed.a&&s.signed.b) ? "Submit audit" : "Both signatures required", act:()=> (s.signed.a&&s.signed.b) ? (this.archive(), this.go("export")) : this.flash("Auditor and MOD must both sign before submitting.")},
-      export:{label:"Generate report", act:()=>{ this.persist(); this.flash("Opening the printable report — use your browser's Print / Save as PDF."); setTimeout(()=>{ try{ window.open(encodeURI("./QSCV Audit Report.dc.html"), "_blank"); }catch(e){} }, 500); }}
+      export:{
+        label: s.dest==="xls" ? "Download workbook" : s.dest==="both" ? "Generate both files" : "Generate report",
+        act:()=>{
+          this.persist();
+          if(s.dest==="xls"){ this.exportWorkbook(); return; }
+          if(s.dest==="both"){ this.exportWorkbook().then(()=>this.openPrintable()); return; }
+          this.flash("Opening the printable report — use your browser's Print / Save as PDF.");
+          this.openPrintable();
+        }
+      }
     }[s.screen];
 
     const done = T.rows.reduce((n,r)=>n+r.st.done,0);
@@ -1616,7 +1701,7 @@ class Component extends DCLogic {
       criticalFail: cf>=5, cfCount: cf,
       devLine: dev.total ? dev.total+" deviations · "+dev.pts+" points lost" : "No deviations logged yet",
       minorCount: dev.d.L, majorCount: dev.d.M, criticalCount: dev.d.H,
-      devPoints: dev.pts, devTotal: dev.total,
+      devPoints: dev.pts, devTotal: dev.total + (dev.total===1 ? " finding" : " findings"),
       evidenceLine: Object.keys(s.ev).length ? Object.keys(s.ev).length+" findings carry evidence." : "No evidence attached yet.",
       autoHighlight: (function(){
         const scored = T.rows.filter(r=>r.st.pct!==null);
@@ -1657,8 +1742,8 @@ class Component extends DCLogic {
       destPdf:s.dest==="pdf", destXls:s.dest==="xls", destBoth:s.dest==="both",
       setDestPdf:()=>this.setState({dest:"pdf"}), setDestXls:()=>this.setState({dest:"xls"}), setDestBoth:()=>this.setState({dest:"both"}),
       exportNote: {pdf:"The PDF mirrors the audit form: cover, weighted summary, one sheet per category with Y/N/N-A marks, then the deviation log with photos.",
-        xls:"The workbook writes back into the same tabs as TENYA QSCV Audit Form — SUMMARY, CAT I PQ, CAT I PQ 2, CAT II-VI FS, CAT VII FOH, CAT VIII SOS, CAT IX RECORDS.",
-        both:"Both files, plus each logged deviation becomes a dated CAPA task assigned to the branch MOD."}[s.dest],
+        xls:"A real .xlsx: SUMMARY, one tab per category with the Y / N / N-A marks and your notes, DEVIATIONS, and a CAPA PLAN tab with columns 4 to 6 left blank for the store.",
+        both:"The workbook downloads, then the printable report opens — print that to PDF and you have both."}[s.dest],
       primaryLabel: primary.label, primaryAction: primary.act,
       platformLabel: platform==="iOS" ? "iPhone 15 · 390 × 844" : "Android · 390 × 844",
       dashAvg: dash.avg, dashLine: dash.line,
@@ -1726,7 +1811,16 @@ class Component extends DCLogic {
       sendState: s.mailSentAt
         ? "Sent " + new Date(s.mailSentAt).toLocaleTimeString("en-GB", {hour:"2-digit", minute:"2-digit"}) + " · " + ((s.mailResult && s.mailResult.photos) || 0) + " photos uploaded"
         : s.cUser ? "Not sent yet" : "Sign in to send — the email goes out from the QSCV mailbox.",
-      reset: e2=>{ e2.preventDefault(); try{localStorage.removeItem(KEY);}catch(err){} if(this.photos) this.photos.clearAll(); this.setState({screen:"home",cat:null,scores:{},ev:{},open:{},speed:{},signed:{a:false,b:false},savedAt:null,sheet:null}); this.clearSig("a"); this.clearSig("b"); }
+      reset: e2=>{
+        e2.preventDefault();
+        const label = BRANDS[this.state.brand].label;
+        if(!window.confirm("Clear this "+label+" audit? Every mark, note and evidence photo in the current draft is deleted. Audits already signed off and submitted are not affected.")) return;
+        try{ localStorage.removeItem(KEY(this.state.brand)); }catch(err){}
+        if(this.photos) this.photos.clearAll(this.state.brand);
+        this.setState({screen:"home", cat:null, scores:{}, ev:{}, open:{}, step:{}, speed:{}, signed:{a:false,b:false},
+          savedAt:null, mailSentAt:null, mailResult:null, mailWarned:false, sheet:null, timing:null});
+        this.flash("Draft cleared.");
+      },
     };
   }
   setMeta(k,v){ const meta=Object.assign({},this.state.meta); meta[k]=v; this.setState({meta}); }
