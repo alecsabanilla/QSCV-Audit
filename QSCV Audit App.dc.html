@@ -348,6 +348,7 @@ a:hover{color:var(--color-accent-700)}
 <div style="display:flex;gap:8px;align-items:center">
 <button style="{{ m.btnStyle }}" onClick="{{ m.onTime }}">{{ m.btnLabel }}</button>
 <sc-if value="{{ m.isTiming }}"><span style="font:600 22px/1 var(--font-heading);color:var(--color-accent);font-variant-numeric:tabular-nums">{{ m.clock }}</span></sc-if>
+<sc-if value="{{ m.isTiming }}"><button class="btn btn-ghost" style="font-size:11px;padding:6px 8px" onClick="{{ m.onCancel }}">Discard</button></sc-if>
 <sc-if value="{{ m.canUndo }}"><button class="btn btn-ghost" style="font-size:11px;padding:6px 8px" onClick="{{ m.onUndo }}">Undo last</button></sc-if>
 </div>
 </div>
@@ -1030,7 +1031,7 @@ class Component extends DCLogic {
       screen:"home", role:"Auditor", cat:null, brand:"tenya",
       scores:{}, ev:{}, open:{}, step:{}, sheet:null,
       meta:{branch:"Tenya Glorietta 2", date:"2026-09-01", time:"11:30", auditor:"A. Sabanilla", mod:"J. Cruz", stype:"Mall", highlights:""},
-      speed:{}, daypart:"Lunch", timing:null, clock:0,
+      speed:{}, daypart:"Lunch", timing:{}, now:0,
       signed:{a:false,b:false}, dest:"pdf", toast:null, savedAt:null,
       mailBusy:false, mailProgress:"", mailSentAt:null, mailWarned:false, mailResult:null, mailReady:false,
       storeBook:{}, emailDraft:"",
@@ -1048,7 +1049,12 @@ class Component extends DCLogic {
     try{
       const raw = localStorage.getItem(KEY(brand));
       const s = raw ? JSON.parse(raw) : {};
-      this.setState(Object.assign({}, s, {brand, toast:null, timing:null, sheet:null}));
+      const {run, stale} = this.resumeClocks(s.timing);
+      this.setState(Object.assign({}, s, {brand, toast:null, timing:run, now:Date.now(), sheet:null}));
+      this.ensureTick(run);
+      const n = Object.keys(run).length;
+      if(n) this.flash(n+" speed clock"+(n>1?"s":"")+" still running from earlier.");
+      else if(stale) this.flash(stale+" speed clock"+(stale>1?"s were":" was")+" left running over an hour ago — discarded.");
     }catch(e){ this.setState({brand}); }
     import("./qscv-history.js").then(H=>{
       let live = [];
@@ -1080,9 +1086,7 @@ class Component extends DCLogic {
       C.init().catch(()=>{});
     }).catch(()=>{});
   }
-  componentWillUnmount(){
-    ["_offAuth","_offStat","_offBr","_offAud"].forEach(k=>{ if(this[k]) this[k](); });
-  }
+
   /* The active brand's stores: whatever Firestore holds for that brand, or
      the built-in roster before the config doc exists. */
   roster(){
@@ -1222,7 +1226,7 @@ class Component extends DCLogic {
     const today = new Date().toISOString().slice(0,10);
     this.setState({
       screen:"home", cat:null, scores:{}, ev:{}, open:{}, step:{}, sheet:null,
-      speed:{}, daypart:"Lunch", timing:null, clock:0,
+      speed:{}, daypart:"Lunch", timing:{}, now:0,
       signed:{a:false,b:false}, dest:"pdf", savedAt:null,
       mailBusy:false, mailProgress:"", mailSentAt:null, mailWarned:false, mailResult:null,
       meta:{branch:"", date:today, time:"", auditor:m.auditor||"", mod:"", stype:m.stype||"Mall", highlights:""}
@@ -1240,7 +1244,7 @@ class Component extends DCLogic {
       const s = this.state;
       const evLight = {};
       Object.keys(s.ev).forEach(k=>{ const v=s.ev[k]; evLight[k]={photos:v.photos||0,note:v.note||"",capa:v.capa||"",repeat:!!v.repeat}; });
-      localStorage.setItem(KEY(s.brand), JSON.stringify({screen:s.screen,role:s.role,cat:s.cat,scores:s.scores,ev:evLight,open:s.open,step:s.step,meta:s.meta,speed:s.speed,daypart:s.daypart,signed:s.signed,dest:s.dest,savedAt:Date.now()}));
+      localStorage.setItem(KEY(s.brand), JSON.stringify({screen:s.screen,role:s.role,cat:s.cat,scores:s.scores,ev:evLight,open:s.open,step:s.step,meta:s.meta,speed:s.speed,daypart:s.daypart,timing:s.timing||{},signed:s.signed,dest:s.dest,savedAt:Date.now()}));
     }catch(e){}
   }
   /* Park the current brand's draft, then bring the other brand's forward. */
@@ -1253,11 +1257,13 @@ class Component extends DCLogic {
     try{ const raw = localStorage.getItem(KEY(b)); if(raw) saved = JSON.parse(raw); }catch(e){}
     const fresh = {
       screen:"home", cat:null, scores:{}, ev:{}, open:{}, step:{}, sheet:null,
-      speed:{}, daypart:"Lunch", timing:null, signed:{a:false,b:false},
+      speed:{}, daypart:"Lunch", timing:{}, signed:{a:false,b:false},
       savedAt:null, mailSentAt:null, mailResult:null, mailWarned:false,
       meta: Object.assign({}, this.state.meta, {branch:BRANDS[b].branches[0].name, mod:"", highlights:""})
     };
-    this.setState(Object.assign({}, fresh, saved || {}, {brand:b, toast:null, timing:null, sheet:null, screen:"home"}));
+    const resumed = this.resumeClocks(saved && saved.timing).run;
+    this.setState(Object.assign({}, fresh, saved || {}, {brand:b, toast:null, timing:resumed, now:Date.now(), sheet:null, screen:"home"}));
+    this.ensureTick(resumed);
     this.loadStoreBook(b);
     /* Evidence is stored per brand, so swap the photo set too. */
     if(this.photos) this.photos.loadAll(b).then(map=>{
@@ -1355,22 +1361,72 @@ class Component extends DCLogic {
     ev[key] = Object.assign({}, this.ev(key), patch);
     this.setState({ev});
   }
+  /* One guest generates several measures at once — acknowledged, waiting to
+     order, food served, billed, bussed — so every measure keeps its own start
+     time and any number can run together. A single interval ticks them all. */
+  runningClocks(){ return Object.assign({}, this.state.timing || {}); }
+  /* Idempotent on purpose: always tear the interval down before deciding
+     whether to start a new one. Guarding on `_ti` being falsy wedges the
+     clock permanently if the handle is ever left set after its interval
+     stopped — which a hot reload does. */
+  ensureTick(run){
+    if(this._ti){ clearInterval(this._ti); this._ti = null; }
+    if(Object.keys(run || {}).length){
+      this._tick = 0;
+      this._ti = setInterval(()=>{ this._tick++; this.setState({tick:this._tick, now:Date.now()}); }, 250);
+      /* A backgrounded tab has its timers throttled to a crawl, so the
+         readout stalls while the phone is locked. Elapsed time is computed
+         from the absolute start, so snapping on return shows the truth. */
+      if(!this._onVis){
+        this._onVis = ()=>{ if(!document.hidden) this.setState({now:Date.now()}); };
+        document.addEventListener("visibilitychange", this._onVis);
+      }
+    }
+  }
   startTiming(m){
-    if(this.state.timing===m.id){
-      const el = (Date.now()-this._t0)/1000;
+    const run = this.runningClocks();
+    if(run[m.id]){
+      const el = (Date.now()-run[m.id])/1000;
+      delete run[m.id];
       const speed = Object.assign({}, this.state.speed);
       const arr = (speed[m.id]||[]).slice();
       if(arr.length < m.n) arr.push(Math.round(el));
       speed[m.id] = arr;
-      clearInterval(this._ti);
-      this.setState({timing:null, speed, clock:0});
-      this.flash("Sample "+arr.length+" of "+m.n+" recorded at "+this.fmt(Math.round(el))+" — "+(el<=m.limit?"within standard":"over standard"));
+      this.setState({timing:run, speed, now:Date.now()}, ()=>this.persistNow());
+      this.ensureTick(run);
+      const left = Object.keys(run).length;
+      this.flash("Sample "+arr.length+" of "+m.n+" recorded at "+this.fmt(Math.round(el))+" — "
+        + (el<=m.limit?"within standard":"over standard")
+        + (left ? " · "+left+" clock"+(left>1?"s":"")+" still running" : ""));
       return;
     }
-    clearInterval(this._ti);
-    this._t0 = Date.now();
-    this.setState({timing:m.id, clock:0});
-    this._ti = setInterval(()=>this.setState({clock:(Date.now()-this._t0)/1000}), 100);
+    run[m.id] = Date.now();
+    this.setState({timing:run, now:Date.now()}, ()=>this.persistNow());
+    this.ensureTick(run);
+    const n = Object.keys(run).length;
+    if(n > 1) this.flash(n+" clocks running — stop each one as that step completes.");
+  }
+  /* Abandon a clock without writing a sample — the guest left, the step was
+     missed, or the auditor tapped the wrong measure. */
+  cancelTiming(m){
+    const run = this.runningClocks();
+    if(!run[m.id]) return;
+    delete run[m.id];
+    this.setState({timing:run}, ()=>this.persistNow());
+    this.ensureTick(run);
+    this.flash(m.name+" timing discarded — no sample recorded.");
+  }
+  /* Clocks are absolute start timestamps, so a draft reopened minutes later
+     resumes correctly. A clock older than an hour is a forgotten one, not a
+     real measurement — drop it rather than report a 14-hour bussing time. */
+  resumeClocks(saved){
+    const run = {}, cutoff = Date.now() - 3600e3;
+    let stale = 0;
+    Object.keys(saved || {}).forEach(id=>{
+      const t = saved[id];
+      if(typeof t === "number" && t > cutoff) run[id] = t; else stale++;
+    });
+    return {run, stale};
   }
   undo(m){
     const speed = Object.assign({}, this.state.speed);
@@ -1439,7 +1495,15 @@ class Component extends DCLogic {
     setTimeout(()=>{ try{ window.open(encodeURI("./QSCV Audit Report.dc.html"), "_blank"); }catch(e){} }, 500);
   }
   fmt(sec){ const s=Math.max(0,Math.round(sec)); return Math.floor(s/60)+"m "+String(s%60).padStart(2,"0")+"s"; }
-  componentWillUnmount(){ clearInterval(this._ti); clearTimeout(this._tt); clearTimeout(this._pt); }
+  /* The only teardown in the class — a second definition would silently
+     shadow this one and leak the cloud subscriptions. */
+  componentWillUnmount(){
+    this.persistNow();                 /* flush the 400ms debounce before leaving */
+    clearInterval(this._ti); this._ti = null;
+    clearTimeout(this._tt); clearTimeout(this._pt);
+    if(this._onVis){ document.removeEventListener("visibilitychange", this._onVis); this._onVis = null; }
+    ["_offAuth","_offStat","_offBr","_offAud"].forEach(k=>{ if(this[k]) this[k](); });
+  }
 
   sigDown(which, e){
     const cv = which==="a" ? this.sigA.current : this.sigB.current;
@@ -1552,6 +1616,9 @@ class Component extends DCLogic {
     const stepDoneCount = stepMode ? (()=>{ let d=0; const gr=cat.groups[stepIdx];
       gr.items.forEach((it,ii)=>{ if(s.scores[cat.num+"."+stepIdx+"."+ii]) d++; }); return d+" of "+gr.items.length+" scored"; })() : "";
 
+    /* Read the tick so every interval fire repaints the running clocks;
+       Date.now() keeps the readout honest between fires. */
+    const nowMs = Math.max(s.now || 0, Date.now());
     const measures = MEASURES.map(m=>{
       const arr = s.speed[m.id]||[];
       const pass = arr.filter(v=>v<=m.limit).length;
@@ -1565,13 +1632,16 @@ class Component extends DCLogic {
           style:"flex:1;min-height:36px;display:grid;place-items:center;font:600 11px/1 var(--font-body);border:1px solid "+(v===undefined?"var(--color-divider)":ok?"var(--color-accent-600)":"var(--color-accent-900)")+";background:"+(v===undefined?"transparent":ok?"var(--color-accent-100)":"var(--color-accent-900)")+";color:"+(v===undefined?"var(--color-neutral-500)":ok?"var(--color-accent-800)":"var(--color-bg)")
         });
       }
-      const timing = s.timing===m.id;
+      const startedAt = (s.timing || {})[m.id];
+      const timing = !!startedAt;
       return {
         name:m.name, std:m.std, n:m.n, samples,
         passLabel: arr.length? pass+" of "+arr.length+" within standard" : "not yet sampled",
         ptsLabel: pts+" / "+m.max,
         color: arr.length? (pts>=m.max-1?"var(--color-accent-700)":"var(--color-accent-900)") : "var(--color-neutral-500)",
-        isTiming: timing, clock: this.fmt(s.clock),
+        isTiming: timing,
+        clock: timing ? this.fmt((nowMs - startedAt)/1000) : "",
+        onCancel: ()=> this.cancelTiming(m),
         canUndo: arr.length>0 && !timing,
         btnLabel: timing ? "Stop" : (arr.length>=m.n ? "Samples complete" : "Start timing"),
         btnStyle:"min-height:44px;padding:0 16px;border:1px solid "+(timing?"var(--color-accent-900)":"var(--color-accent)")+";background:"+(timing?"var(--color-accent-900)":arr.length>=m.n?"transparent":"var(--color-accent)")+";color:"+(arr.length>=m.n&&!timing?"var(--color-neutral-600)":"var(--color-bg)")+";font:600 13px/1 var(--font-heading);letter-spacing:.04em;cursor:pointer;border-radius:0",
@@ -1818,7 +1888,7 @@ class Component extends DCLogic {
         try{ localStorage.removeItem(KEY(this.state.brand)); }catch(err){}
         if(this.photos) this.photos.clearAll(this.state.brand);
         this.setState({screen:"home", cat:null, scores:{}, ev:{}, open:{}, step:{}, speed:{}, signed:{a:false,b:false},
-          savedAt:null, mailSentAt:null, mailResult:null, mailWarned:false, sheet:null, timing:null});
+          savedAt:null, mailSentAt:null, mailResult:null, mailWarned:false, sheet:null, timing:{}});
         this.flash("Draft cleared.");
       },
     };
