@@ -1127,12 +1127,15 @@ class Component extends DCLogic {
       grade: this.grade(T.weightSeen ? T.score / T.weightSeen * 100 : 0, this.criticalFails()).name,
       dev:{H:dev.d.H, M:dev.d.M, L:dev.d.L}, critical:this.criticalFails()>=5,
       auditor:s.meta.auditor, submittedAt:Date.now()};
+    /* Each brand owns its archive key — writing both into one key would make the
+       dashboard read RACKS audits as Tenya's and skew the monthly history. */
+    const AK = (H.ARCHIVE_KEYS && H.ARCHIVE_KEYS[s.brand]) || H.ARCHIVE_KEY;
     try{
-      const raw = localStorage.getItem(H.ARCHIVE_KEY);
+      const raw = localStorage.getItem(AK);
       const all = raw ? (JSON.parse(raw)||[]) : [];
       const i = all.findIndex(r=>r.branch===rec.branch && r.date===rec.date);
       if(i>=0) all[i] = rec; else all.push(rec);
-      localStorage.setItem(H.ARCHIVE_KEY, JSON.stringify(all));
+      localStorage.setItem(AK, JSON.stringify(all));
       this.setState({live:all});
     }catch(e){}
     const C = this.state.cloud;

@@ -240,6 +240,49 @@ a:hover{color:var(--color-accent-700)}
 <span>Stronger</span>
 </div>
 
+<h2 style="font-size:20px;margin:44px 0 4px">Monthly history</h2>
+<div style="font-size:12px;color:var(--color-neutral-600);margin-bottom:12px">{{ historyLine }}</div>
+<sc-if value="{{ hasHistory }}" hint-placeholder-val="{{ true }}">
+<table class="qd-t">
+<thead><tr><th>Month</th><th style="text-align:right">Avg grade</th><th>Band</th><th style="text-align:right">Δ vs prior month</th><th style="text-align:right">Audits</th><th style="text-align:right">Branches covered</th><th>Weakest category</th><th style="width:130px">Trend</th></tr></thead>
+<tbody>
+<sc-for list="{{ monthTable }}" as="m" hint-placeholder-count="4">
+<tr>
+<td style="font-weight:600;white-space:nowrap">{{ m.month }}</td>
+<td style="text-align:right;font-variant-numeric:tabular-nums;font-weight:600">{{ m.avg }}</td>
+<td>{{ m.band }}</td>
+<td style="{{ m.deltaStyle }}">{{ m.delta }}</td>
+<td style="text-align:right;font-variant-numeric:tabular-nums">{{ m.audits }}</td>
+<td style="text-align:right;font-variant-numeric:tabular-nums">{{ m.covered }}</td>
+<td style="font-size:11.5px;color:var(--color-neutral-700)">{{ m.weakest }}</td>
+<td><span style="{{ m.barStyle }}"></span></td>
+</tr>
+</sc-for>
+</tbody>
+</table>
+</sc-if>
+
+<sc-if value="{{ hasBranchHist }}" hint-placeholder-val="{{ false }}">
+<h3 style="font-size:15px;margin:28px 0 4px">Branch by month</h3>
+<div style="font-size:12px;color:var(--color-neutral-600);margin-bottom:12px">Last six months per branch. Deeper shading is weaker; a dash means no audit closed that month.</div>
+<table class="qd-t">
+<thead><tr><th>Branch</th>
+<sc-for list="{{ monthHeads }}" as="h" hint-placeholder-count="6">
+<th style="text-align:center;width:74px">{{ h.label }}</th>
+</sc-for>
+</tr></thead>
+<tbody>
+<sc-for list="{{ branchHist }}" as="r" hint-placeholder-count="7">
+<tr><td style="font-weight:600;white-space:nowrap">{{ r.branch }}</td>
+<sc-for list="{{ r.cells }}" as="cell" hint-placeholder-count="6">
+<td style="{{ cell.style }}">{{ cell.label }}</td>
+</sc-for>
+</tr>
+</sc-for>
+</tbody>
+</table>
+</sc-if>
+
 <div style="margin-top:40px;padding-top:16px;border-top:1px solid var(--color-divider);font-size:11.5px;line-height:1.6;color:var(--color-neutral-600)">
 {{ sourceLine }} · <a href="QSCV Audit App.dc.html">Open the audit app</a>
 </div>
@@ -351,6 +394,60 @@ class Component extends DCLogic {
     const onTime = rows.filter(r=>r.cur && r.stale<=7).length;
     const overdue = rows.filter(r=>!r.cur || r.stale>7);
 
+    /* ---- monthly history ----
+       Every signed audit keeps its date, so history is a grouping of the same
+       archive the league table reads — nothing extra is stored. */
+    const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    const inArea = r => area==="All" || (branches.some(b=>b.name===r.branch));
+    const histRows = all.filter(inArea);
+    const byMonth = {};
+    histRows.forEach(r=>{
+      const k = String(r.date).slice(0,7);
+      (byMonth[k] = byMonth[k] || []).push(r);
+    });
+    const monthKeys = Object.keys(byMonth).sort().slice(-12);
+    const monthStat = monthKeys.map(k=>{
+      const rs = byMonth[k];
+      const a = rs.reduce((s,r)=>s+r.score,0)/rs.length;
+      const uniq = {}; rs.forEach(r=>uniq[r.branch]=1);
+      let worst = null;
+      CATS.forEach(c=>{
+        const vs = rs.map(r=>r.cats && r.cats[c.num]).filter(v=>v!=null);
+        if(!vs.length) return;
+        const m = vs.reduce((s,v)=>s+v,0)/vs.length;
+        if(!worst || m < worst.v) worst = {v:m, label:c.num+" · "+c.short};
+      });
+      return {key:k, avg:a, n:rs.length, covered:Object.keys(uniq).length, worst};
+    });
+    const monthTable = monthStat.map((m,i)=>{
+      const p = i>0 ? monthStat[i-1].avg : null;
+      const d = p===null ? null : m.avg-p;
+      const y = m.key.slice(0,4), mi = +m.key.slice(5,7)-1;
+      return {
+        month: MON[mi]+" "+y,
+        avg: m.avg.toFixed(1),
+        band: BAND(m.avg),
+        audits: String(m.n),
+        covered: m.covered+" / "+branches.length,
+        delta: d===null ? "—" : (d>=0?"+":"")+d.toFixed(1),
+        deltaStyle: "text-align:right;font-variant-numeric:tabular-nums;font-weight:600;color:"
+          + (d===null ? "var(--color-neutral-600)" : d>=0 ? "var(--color-accent-700)" : "var(--color-accent-900)"),
+        weakest: m.worst ? m.worst.label : "—",
+        barStyle: "display:block;height:10px;background:var(--color-accent);width:"
+          + Math.max(2, Math.round(((m.avg-60)/40)*100)) + "%"
+      };
+    }).reverse();
+    const monthCols = monthStat.slice(-6);
+    const branchHist = branches.map(b=>({
+      branch: b.name,
+      cells: monthCols.map(m=>{
+        const rs = byMonth[m.key].filter(r=>r.branch===b.name);
+        if(!rs.length) return {label:"—", style:"text-align:center;color:var(--color-neutral-500)"};
+        const v = rs.reduce((s,r)=>s+r.score,0)/rs.length;
+        return {label:v.toFixed(1), style:this.heatStyle(v/100)};
+      })
+    }));
+
     const catAvg = {};
     CATS.forEach(c=>{
       const vals = scored.map(r=>r.cur.cats[c.num]).filter(v=>v!=null);
@@ -408,6 +505,14 @@ class Component extends DCLogic {
     return {
       areaLabel: area==="All" ? "all "+branches.length+" branches" : area+" · "+branches.length+" branches",
       cycleLabel: cycleDate,
+      monthTable,
+      hasHistory: monthTable.length > 0,
+      historyLine: monthTable.length
+        ? monthTable.length+" month"+(monthTable.length===1?"":"s")+" on record — newest first. Each month averages every audit signed off in it."
+        : "No months on record yet. As audits are signed off, each month closes into a row here automatically — nothing to set up.",
+      monthHeads: monthCols.map(m=>({label: MON[+m.key.slice(5,7)-1]+" "+m.key.slice(2,4)})),
+      branchHist,
+      hasBranchHist: monthCols.length > 0,
       brandLabel: BR.label,
       brandClass: "brand-" + brand,
       brandBtns: Object.keys(H.BRANDS).map(k=>({
