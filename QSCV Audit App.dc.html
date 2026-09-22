@@ -345,10 +345,17 @@ a:hover{color:var(--color-accent-700)}
 <div style="{{ s.style }}">{{ s.label }}</div>
 </sc-for>
 </div>
+<sc-for list="{{ m.lanes }}" as="lane" hint-placeholder-count="0">
+<div style="display:flex;gap:9px;align-items:center;border:1px solid var(--color-accent-300);padding:7px 9px">
+<span style="font:600 9.5px/1 var(--font-body);letter-spacing:.12em;text-transform:uppercase;color:var(--color-accent-700);flex:none">{{ lane.tag }}</span>
+<span style="flex:1;font:600 22px/1 var(--font-heading);color:var(--color-accent);font-variant-numeric:tabular-nums">{{ lane.clock }}</span>
+<button style="min-height:38px;padding:0 14px;border:1px solid var(--color-accent-900);background:var(--color-accent-900);color:var(--color-bg);font:600 12px/1 var(--font-heading);letter-spacing:.04em;cursor:pointer;border-radius:0" onClick="{{ lane.onStop }}">Stop</button>
+<button class="btn btn-ghost" style="font-size:11px;padding:6px 8px" onClick="{{ lane.onCancel }}">Discard</button>
+</div>
+</sc-for>
+<sc-if value="{{ m.isTiming }}"><div style="font-size:11px;color:var(--color-neutral-600)">{{ m.laneNote }}</div></sc-if>
 <div style="display:flex;gap:8px;align-items:center">
 <button style="{{ m.btnStyle }}" onClick="{{ m.onTime }}">{{ m.btnLabel }}</button>
-<sc-if value="{{ m.isTiming }}"><span style="font:600 22px/1 var(--font-heading);color:var(--color-accent);font-variant-numeric:tabular-nums">{{ m.clock }}</span></sc-if>
-<sc-if value="{{ m.isTiming }}"><button class="btn btn-ghost" style="font-size:11px;padding:6px 8px" onClick="{{ m.onCancel }}">Discard</button></sc-if>
 <sc-if value="{{ m.canUndo }}"><button class="btn btn-ghost" style="font-size:11px;padding:6px 8px" onClick="{{ m.onUndo }}">Undo last</button></sc-if>
 </div>
 </div>
@@ -1052,7 +1059,7 @@ class Component extends DCLogic {
       const {run, stale} = this.resumeClocks(s.timing);
       this.setState(Object.assign({}, s, {brand, toast:null, timing:run, now:Date.now(), sheet:null}));
       this.ensureTick(run);
-      const n = Object.keys(run).length;
+      const n = this.laneCount(run);
       if(n) this.flash(n+" speed clock"+(n>1?"s":"")+" still running from earlier.");
       else if(stale) this.flash(stale+" speed clock"+(stale>1?"s were":" was")+" left running over an hour ago — discarded.");
     }catch(e){ this.setState({brand}); }
@@ -1367,14 +1374,18 @@ class Component extends DCLogic {
   /* One guest generates several measures at once — acknowledged, waiting to
      order, food served, billed, bussed — so every measure keeps its own start
      time and any number can run together. A single interval ticks them all. */
-  runningClocks(){ return Object.assign({}, this.state.timing || {}); }
+  runningClocks(){
+    const src = this.state.timing || {}, out = {};
+    Object.keys(src).forEach(id=>{ if((src[id]||[]).length) out[id] = src[id].slice(); });
+    return out;
+  }
   /* Idempotent on purpose: always tear the interval down before deciding
      whether to start a new one. Guarding on `_ti` being falsy wedges the
      clock permanently if the handle is ever left set after its interval
      stopped — which a hot reload does. */
   ensureTick(run){
     if(this._ti){ clearInterval(this._ti); this._ti = null; }
-    if(Object.keys(run || {}).length){
+    if(this.laneCount(run)){
       this._tick = 0;
       this._ti = setInterval(()=>{ this._tick++; this.setState({tick:this._tick, now:Date.now()}); }, 250);
       /* A backgrounded tab has its timers throttled to a crawl, so the
@@ -1386,35 +1397,53 @@ class Component extends DCLogic {
       }
     }
   }
+  /* A busy floor has several guests mid-step in the SAME measure at once, so
+     each measure holds a LIST of lanes ({k, t}) rather than one start time.
+     Lanes are stopped independently and in any order — the one that finishes
+     first records its own sample, whichever guest it belongs to. */
+  laneCount(run){ let n=0; Object.keys(run||{}).forEach(id=>n += (run[id]||[]).length); return n; }
+  lanesOf(m){ return ((this.state.timing||{})[m.id]||[]).slice(); }
   startTiming(m){
     const run = this.runningClocks();
-    if(run[m.id]){
-      const el = (Date.now()-run[m.id])/1000;
-      delete run[m.id];
-      const speed = Object.assign({}, this.state.speed);
-      const arr = (speed[m.id]||[]).slice();
-      if(arr.length < m.n) arr.push(Math.round(el));
-      speed[m.id] = arr;
-      this.setState({timing:run, speed, now:Date.now()}, ()=>this.persistNow());
-      this.ensureTick(run);
-      const left = Object.keys(run).length;
-      this.flash("Sample "+arr.length+" of "+m.n+" recorded at "+this.fmt(Math.round(el))+" — "
-        + (el<=m.limit?"within standard":"over standard")
-        + (left ? " · "+left+" clock"+(left>1?"s":"")+" still running" : ""));
+    const lanes = (run[m.id]||[]).slice();
+    const taken = (this.state.speed[m.id]||[]).length;
+    if(taken + lanes.length >= m.n){
+      this.flash("All "+m.n+" samples for "+m.name+" are recorded or already being timed.");
       return;
     }
-    run[m.id] = Date.now();
+    this._laneSeq = (this._laneSeq||0) + 1;
+    lanes.push({k:"L"+this._laneSeq+"-"+Date.now(), t:Date.now()});
+    run[m.id] = lanes;
     this.setState({timing:run, now:Date.now()}, ()=>this.persistNow());
     this.ensureTick(run);
-    const n = Object.keys(run).length;
-    if(n > 1) this.flash(n+" clocks running — stop each one as that step completes.");
+    if(lanes.length > 1) this.flash(lanes.length+" guests being timed on "+m.name+" — stop whichever finishes first.");
   }
-  /* Abandon a clock without writing a sample — the guest left, the step was
-     missed, or the auditor tapped the wrong measure. */
-  cancelTiming(m){
+  stopTiming(m, k){
     const run = this.runningClocks();
-    if(!run[m.id]) return;
-    delete run[m.id];
+    const lanes = (run[m.id]||[]).slice();
+    const i = lanes.findIndex(l=>l.k===k);
+    if(i<0) return;
+    const el = (Date.now()-lanes[i].t)/1000;
+    lanes.splice(i,1);
+    if(lanes.length) run[m.id] = lanes; else delete run[m.id];
+    const speed = Object.assign({}, this.state.speed);
+    const arr = (speed[m.id]||[]).slice();
+    if(arr.length < m.n) arr.push(Math.round(el));
+    speed[m.id] = arr;
+    this.setState({timing:run, speed, now:Date.now()}, ()=>this.persistNow());
+    this.ensureTick(run);
+    const left = this.laneCount(run);
+    this.flash("Sample "+arr.length+" of "+m.n+" recorded at "+this.fmt(Math.round(el))+" — "
+      + (el<=m.limit?"within standard":"over standard")
+      + (left ? " · "+left+" clock"+(left>1?"s":"")+" still running" : ""));
+  }
+  /* Abandon one lane without writing a sample — that guest left, the step was
+     missed, or the auditor tapped the wrong measure. */
+  cancelTiming(m, k){
+    const run = this.runningClocks();
+    const lanes = (run[m.id]||[]).filter(l=>l.k!==k);
+    if(lanes.length === (run[m.id]||[]).length) return;
+    if(lanes.length) run[m.id] = lanes; else delete run[m.id];
     this.setState({timing:run}, ()=>this.persistNow());
     this.ensureTick(run);
     this.flash(m.name+" timing discarded — no sample recorded.");
@@ -1425,9 +1454,14 @@ class Component extends DCLogic {
   resumeClocks(saved){
     const run = {}, cutoff = Date.now() - 3600e3;
     let stale = 0;
+    /* Drafts written before multi-lane timing stored one number per measure;
+       read those as a single lane so an in-progress audit isn't lost. */
     Object.keys(saved || {}).forEach(id=>{
-      const t = saved[id];
-      if(typeof t === "number" && t > cutoff) run[id] = t; else stale++;
+      const v = saved[id];
+      const lanes = typeof v === "number" ? [{k:"legacy-"+id, t:v}] : (Array.isArray(v) ? v : []);
+      const live = lanes.filter(l=>l && typeof l.t === "number" && l.t > cutoff);
+      stale += lanes.length - live.length;
+      if(live.length) run[id] = live;
     });
     return {run, stale};
   }
@@ -1635,20 +1669,26 @@ class Component extends DCLogic {
           style:"flex:1;min-height:36px;display:grid;place-items:center;font:600 11px/1 var(--font-body);border:1px solid "+(v===undefined?"var(--color-divider)":ok?"var(--color-accent-600)":"var(--color-accent-900)")+";background:"+(v===undefined?"transparent":ok?"var(--color-accent-100)":"var(--color-accent-900)")+";color:"+(v===undefined?"var(--color-neutral-500)":ok?"var(--color-accent-800)":"var(--color-bg)")
         });
       }
-      const startedAt = (s.timing || {})[m.id];
-      const timing = !!startedAt;
+      const laneList = ((s.timing || {})[m.id] || []);
+      const timing = laneList.length > 0;
+      const full = arr.length + laneList.length >= m.n;
+      const lanes = laneList.map((l,li)=>({
+        tag: "Guest "+(arr.length + li + 1),
+        clock: this.fmt((nowMs - l.t)/1000),
+        onStop: ()=> this.stopTiming(m, l.k),
+        onCancel: ()=> this.cancelTiming(m, l.k)
+      }));
       return {
-        name:m.name, std:m.std, n:m.n, samples,
+        name:m.name, std:m.std, n:m.n, samples, lanes,
         passLabel: arr.length? pass+" of "+arr.length+" within standard" : "not yet sampled",
         ptsLabel: pts+" / "+m.max,
         color: arr.length? (pts>=m.max-1?"var(--color-accent-700)":"var(--color-accent-900)") : "var(--color-neutral-500)",
         isTiming: timing,
-        clock: timing ? this.fmt((nowMs - startedAt)/1000) : "",
-        onCancel: ()=> this.cancelTiming(m),
-        canUndo: arr.length>0 && !timing,
-        btnLabel: timing ? "Stop" : (arr.length>=m.n ? "Samples complete" : "Start timing"),
-        btnStyle:"min-height:44px;padding:0 16px;border:1px solid "+(timing?"var(--color-accent-900)":"var(--color-accent)")+";background:"+(timing?"var(--color-accent-900)":arr.length>=m.n?"transparent":"var(--color-accent)")+";color:"+(arr.length>=m.n&&!timing?"var(--color-neutral-600)":"var(--color-bg)")+";font:600 13px/1 var(--font-heading);letter-spacing:.04em;cursor:pointer;border-radius:0",
-        onTime: ()=> (arr.length>=m.n && !timing) ? this.flash("All "+m.n+" samples recorded. Undo one to re-time.") : this.startTiming(m),
+        laneNote: timing ? laneList.length+" running — tap Stop on whichever guest finishes first" : "",
+        canUndo: arr.length>0,
+        btnLabel: full ? (arr.length>=m.n ? "Samples complete" : "All samples running") : (timing ? "Start another guest" : "Start timing"),
+        btnStyle:"min-height:44px;padding:0 16px;border:1px solid "+(full?"var(--color-divider)":"var(--color-accent)")+";background:"+(full?"transparent":"var(--color-accent)")+";color:"+(full?"var(--color-neutral-600)":"var(--color-bg)")+";font:600 13px/1 var(--font-heading);letter-spacing:.04em;cursor:pointer;border-radius:0",
+        onTime: ()=> this.startTiming(m),
         onUndo: ()=> this.undo(m)
       };
     });

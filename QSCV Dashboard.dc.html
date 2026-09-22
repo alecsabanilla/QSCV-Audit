@@ -55,8 +55,8 @@ a:hover{color:var(--color-accent-700)}
 
 <div class="blueprint" style="padding:14px 18px;margin-bottom:28px;display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap">
 <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
-<div style="display:flex;align-items:center;gap:10px;min-width:0">
-<span style="width:7px;height:7px;flex:none;background:{{ cloudColor }};display:block"></span>
+<div style="display:flex;align-items:flex-start;gap:10px;min-width:0">
+<span style="width:7px;height:7px;flex:none;margin-top:3px;background:{{ cloudColor }};display:block"></span>
 <div>
 <div style="font:600 9.5px/1 var(--font-body);letter-spacing:.12em;text-transform:uppercase;color:var(--color-accent-700)">Portfolio sync · {{ cloudLabel }}</div>
 <sc-if value="{{ signedIn }}" hint-placeholder-val="{{ false }}">
@@ -70,6 +70,22 @@ a:hover{color:var(--color-accent-700)}
 </sc-if>
 <sc-if value="{{ hasCloudNote }}" hint-placeholder-val="{{ false }}">
 <div style="font-size:12px;line-height:1.5;margin-top:5px;color:var(--color-accent-900)">{{ cloudNote }}</div>
+</sc-if>
+<button class="btn btn-ghost" style="margin-top:8px;min-height:30px;padding:0 10px;font-size:11.5px;white-space:nowrap" onClick="{{ onDiag }}">{{ diagBtnLabel }}</button>
+<sc-if value="{{ hasDiag }}" hint-placeholder-val="{{ false }}">
+<div style="margin-top:8px;display:flex;flex-direction:column;gap:6px;max-width:620px">
+<sc-for list="{{ diagRows }}" as="d" hint-placeholder-count="4">
+<div style="display:flex;gap:9px;align-items:flex-start">
+<span style="{{ d.markStyle }}">{{ d.mark }}</span>
+<div style="min-width:0">
+<div style="font-size:12.5px;font-weight:600">{{ d.label }}</div>
+<sc-if value="{{ d.hasNote }}" hint-placeholder-val="{{ false }}">
+<div style="font-size:11.5px;line-height:1.5;color:var(--color-neutral-700)">{{ d.note }}</div>
+</sc-if>
+</div>
+</div>
+</sc-for>
+</div>
 </sc-if>
 </div>
 </div>
@@ -296,7 +312,7 @@ class Component extends DCLogic {
   state = {H:null, brand:"tenya", area:"All", cycle:null, cloud:null, cUser:null, cProfile:null,
            cStatus:"connecting", cloudRows:[], email:"", pw:"", authErr:"", authBusy:false,
            cycle:0,
-           voidTarget:null, voidReason:""};
+           voidTarget:null, voidReason:"", diag:null, diagBusy:false};
   componentDidMount(){
     import("./qscv-history.js").then(H=>{
       /* Both field apps share this origin, so read each brand's archive and
@@ -325,6 +341,15 @@ class Component extends DCLogic {
   componentWillUnmount(){
     ["_offAuth","_offStat","_offAud"].forEach(k=>{ if(this[k]) this[k](); });
   }
+  runDiag(e){
+    if(e) e.preventDefault();
+    const C = this.state.cloud;
+    if(!C || !C.diagnose) return;
+    this.setState({diagBusy:true, diag:null});
+    C.diagnose()
+      .then(diag=>this.setState({diag, diagBusy:false}))
+      .catch(err=>this.setState({diagBusy:false, diag:[{label:"Sync check", ok:false, note:(err&&err.message)||"Check failed."}]}));
+  }
   doSignIn(e){
     if(e) e.preventDefault();
     const C = this.state.cloud;
@@ -352,7 +377,17 @@ class Component extends DCLogic {
     /* Stores that were renamed keep their old name on audits already signed off,
        which would otherwise split one store into two league rows. */
     const ALIAS = {"G2":"Glorietta (G2)", "Glorietta":"Glorietta (G2)"};
-    const canon = r => ALIAS[r.branch] ? Object.assign({}, r, {branch:ALIAS[r.branch]}) : r;
+    /* Branch names typed on different devices differ invisibly — a trailing
+       space, a double space, "Market!Market!" vs "Market! Market!". Matching on
+       raw text splits one store into two league rows, so every comparison goes
+       through a normalized key and snaps back to the roster's spelling. */
+    const key = s => String(s||"").toLowerCase().replace(/[^a-z0-9]+/g,"");
+    const ROSTER = {};
+    BRANCHES.forEach(b=>{ ROSTER[key(b.name)] = b.name; });
+    const canon = r => {
+      const n = ALIAS[r.branch] || ROSTER[key(r.branch)] || String(r.branch||"").replace(/\s+/g," ").trim();
+      return n === r.branch ? r : Object.assign({}, r, {branch:n});
+    };
     const localRows = (this.state.live||[]).filter(r=>r && r.branch && r.score!=null && inBrand(r)).map(canon);
     const cloudRows = (this.state.cloudRows||[]).filter(r=>r && r.branch && r.score!=null && inBrand(r)).map(canon);
     const merged = C ? C.mergeAudits(localRows, cloudRows) : localRows;
@@ -370,7 +405,7 @@ class Component extends DCLogic {
     const cycleDate = WK[ci];
     const extra = [];
     live.forEach(r=>{
-      if(BRANCHES.some(b=>b.name===r.branch) || extra.some(b=>b.name===r.branch)) return;
+      if(ROSTER[key(r.branch)] || extra.some(b=>key(b.name)===key(r.branch))) return;
       extra.push({name:r.branch, area:r.area||BR.areas[0], stype:r.stype||"Mall", weak:[]});
     });
     const branches = BRANCHES.concat(extra).filter(b=>area==="All" || b.area===area);
@@ -474,7 +509,10 @@ class Component extends DCLogic {
         onVoid: e2=>{ e2.preventDefault(); this.setState({voidTarget:{id:r.cur.id, branch:r.b.name, date:r.cur.date}, voidReason:""}); }
       };
     });
-    overdue.forEach(r=>{
+    /* Only never-audited branches get an unranked row. A stale branch is still
+       "overdue" for the coverage line, but it already has a scored row above —
+       appending it here printed the same store twice. */
+    overdue.filter(r=>!r.cur).forEach(r=>{
       league.push({rank:"—", branch:r.b.name, area:r.b.area, stype:r.b.stype,
         date: r.cur ? r.cur.date+" · "+Math.round(r.stale)+"d ago" : "never audited",
         dateStyle:"white-space:nowrap;color:var(--color-accent-700);font-weight:600",
@@ -604,7 +642,18 @@ class Component extends DCLogic {
       onSignIn: e2=>this.doSignIn(e2),
       onSignOut: e2=>{ if(e2) e2.preventDefault(); if(this.state.cloud) this.state.cloud.signOutNow(); },
       authErr: this.state.authErr || "", hasAuthErr: !!this.state.authErr,
-      authBtnLabel: this.state.authBusy ? "Signing in…" : "Sign in"
+      authBtnLabel: this.state.authBusy ? "Signing in…" : "Sign in",
+      onDiag: e2=>this.runDiag(e2),
+      diagBtnLabel: this.state.diagBusy ? "Checking…" : "Run sync check",
+      hasDiag: !!(this.state.diag && this.state.diag.length),
+      diagRows: (this.state.diag||[]).map(d=>({
+        label: d.label,
+        mark: d.ok ? "OK" : "FAIL",
+        markStyle: "font:600 9.5px/1 var(--font-body);letter-spacing:.1em;padding:4px 0;width:40px;text-align:center;flex:none;color:"
+          + (d.ok ? "var(--color-accent-700)" : "var(--color-bg)")
+          + ";background:" + (d.ok ? "var(--color-accent-100)" : "var(--color-accent-900)"),
+        note: d.note, hasNote: !!d.note
+      }))
     };
   }
 }

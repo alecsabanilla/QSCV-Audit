@@ -372,6 +372,71 @@ export function authMessage(err){
   return "Sign-in failed. " + ((err && err.message) || "");
 }
 
+/* ---------- sync check ----------
+   "Nothing is syncing" has five very different causes that all look identical
+   from the outside. This runs each one as a real request and names the
+   failure, so nobody has to read a console to find out which. */
+export async function diagnose(){
+  const out = [];
+  const add = (label, ok, note) => out.push({label, ok, note: note || ""});
+
+  if(typeof navigator !== "undefined" && navigator.onLine === false){
+    add("Internet", false, "This device reports no connection. Everything below is skipped — audits stay saved on the phone and upload when you reconnect.");
+    return out;
+  }
+  add("Internet", true, "");
+
+  try{ await init(); add("Firebase loaded", true, ""); }
+  catch(e){
+    add("Firebase loaded", false, "The Firebase library couldn't load. A work proxy, VPN or browser blocker is usually the cause — try mobile data.");
+    return out;
+  }
+
+  if(!user){
+    add("Signed in", false, "Not signed in on this device. Audits save locally but never reach the shared database — sign in and they upload.");
+    return out;
+  }
+  add("Signed in", true, user.email);
+
+  try{
+    const snap = await M.getDocsFromServer(M.query(M.collection(db, "audits"), M.limit(1)));
+    add("Read from database", true, snap.size ? "Server responded." : "Server responded, but there are no audit documents yet.");
+  }catch(err){
+    const c = (err && err.code) || "network";
+    add("Read from database", false,
+      c === "permission-denied"
+        ? "Rules are rejecting reads. In the Firebase console: Firestore → Rules → paste firestore.rules → Publish."
+        : c === "failed-precondition" || c === "not-found"
+          ? "No Firestore database exists in this project yet. Firebase console → Firestore Database → Create database."
+          : "Couldn't reach Firestore (" + c + "). Usually a proxy, VPN or blocked network.");
+    return out;
+  }
+
+  /* A write is the test that actually matters: reads can pass while rules or a
+     missing profile still block every upload. Written to the caller's own
+     diag doc, then removed, so it never pollutes the audit collection. */
+  try{
+    const ref = M.doc(db, "users", user.uid);
+    await M.setDoc(ref, {lastSyncCheck: Date.now()}, {merge:true});
+    add("Write to database", true, "A test write succeeded — uploads are working.");
+  }catch(err){
+    const c = (err && err.code) || "unknown";
+    add("Write to database", false,
+      c === "permission-denied"
+        ? "Reads work but writes are blocked — the published rules are out of date. Re-publish firestore.rules."
+        : "Write failed (" + c + ").");
+    return out;
+  }
+
+  try{
+    const snap = await M.getDocsFromServer(M.query(M.collection(db, "audits"), M.limit(600)));
+    add("Audits in the cloud", true, snap.size + " audit document" + (snap.size===1?"":"s") + " on the server."
+      + (snap.size === 0 ? " Nothing has been signed off yet, or earlier audits were completed before sign-in existed — those are still on the auditor's phone." : ""));
+  }catch(e){ add("Audits in the cloud", false, "Couldn't count audits."); }
+
+  return out;
+}
+
 export const STATUS_LABEL = {
   connecting:"Connecting", live:"Synced", offline:"Offline · queued",
   "signed-out":"Not signed in", error:"Sync error"
