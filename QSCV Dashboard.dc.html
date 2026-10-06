@@ -195,7 +195,7 @@ a:hover{color:var(--color-accent-700)}
 <div style="display:flex;gap:10px;align-items:baseline;font-size:12px;line-height:1.5;color:var(--color-neutral-700)">
 <span style="flex:1">{{ v.line }}</span>
 <span style="flex:none;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--color-neutral-500)">{{ v.by }}</span>
-<a href="#" onClick="{{ v.onRestore }}" style="flex:none;font-size:11px;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap">Restore</a>
+<sc-if value="{{ canVoid }}" hint-placeholder-val="{{ false }}"><a href="#" onClick="{{ v.onRestore }}" style="flex:none;font-size:11px;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap">Restore</a></sc-if>
 </div>
 </sc-for>
 </div>
@@ -520,7 +520,7 @@ class Component extends DCLogic {
         crit: r.cur.crit,
         critStyle: "text-align:right;font-weight:600;color:"+(r.cur.crit>=5?"var(--color-bg);background:var(--color-accent-900)":"var(--color-neutral-700)"),
         voidable: !!(C && C.isManager && C.isManager() && r.cur.id),
-        hasReport: !!(r.cur.id && r.cur.report),
+        hasReport: !!r.cur.id,
         reportHref: r.cur.id ? "./QSCV Audit Report.dc.html?audit="+encodeURIComponent(r.cur.id)+"&brand="+brand : "#",
         onVoid: e2=>{ e2.preventDefault(); this.setState({voidTarget:{id:r.cur.id, branch:r.b.name, date:r.cur.date}, voidReason:""}); }
       };
@@ -550,8 +550,8 @@ class Component extends DCLogic {
 
     const heatRows = scored.slice().sort((x,y)=>y.cur.score-x.cur.score).map(r=>({
       branch:r.b.name, score:r.cur.score.toFixed(1),
-      hasReport: !!(r.cur.id && r.cur.report),
-      noReport: !(r.cur.id && r.cur.report),
+      hasReport: !!r.cur.id,
+      noReport: !r.cur.id,
       reportHref: r.cur.id ? "./QSCV Audit Report.dc.html?audit="+encodeURIComponent(r.cur.id)+"&brand="+brand : "#",
       cells: CATS.map(c=>{
         const v = r.cur.cats[c.num];
@@ -596,7 +596,7 @@ class Component extends DCLogic {
       voidedList: voidedRows.map(r=>({
         line: r.branch+" · "+r.date+" · "+(r.auditor||"—")+" — "+(r.voidReason||"no reason given"),
         by: r.voidedBy ? "voided by "+r.voidedBy : "voided",
-        onRestore: e2=>{ e2.preventDefault(); if(C && r.id) C.unvoidAudit(r.id).catch(err=>this.setState({authErr:err.message})); }
+        onRestore: e2=>{ e2.preventDefault(); if(C && r.id && C.isManager && C.isManager()) C.unvoidAudit(r.id).catch(err=>this.setState({authErr:err.message})); }
       })),
       hasVoided: voidedRows.length>0,
       voidOpen: !!this.state.voidTarget,
@@ -646,7 +646,7 @@ class Component extends DCLogic {
       authRole: (this.state.cloud && this.state.cloud.roleLabel && this.state.cProfile) ? this.state.cloud.roleLabel() : "Auditor",
       roleDebug: (()=>{
         const p = this.state.cProfile;
-        if(!p || p.role === "manager") return "";
+        if(!p || ["manager","vp","area"].indexOf(p.role) >= 0) return "";
         if(p._createErr) return "Couldn't create your profile document ("+p._createErr+") — re-publish firestore.rules, the users rules changed this release.";
         if(p._err) return "Couldn't read your role document ("+p._err+") — check firestore.rules is published.";
         if(p._found === false) return p._cached
