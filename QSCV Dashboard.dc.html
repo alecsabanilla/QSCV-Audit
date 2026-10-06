@@ -170,9 +170,14 @@ a:hover{color:var(--color-accent-700)}
 <td style="{{ r.deltaStyle }}">{{ r.delta }}</td>
 <td style="{{ r.critStyle }}">{{ r.crit }}</td>
 <td style="text-align:right">
+<div style="display:flex;gap:12px;justify-content:flex-end">
+<sc-if value="{{ r.hasReport }}" hint-placeholder-val="{{ false }}">
+<a href="{{ r.reportHref }}" target="_blank" style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap">Report</a>
+</sc-if>
 <sc-if value="{{ r.voidable }}" hint-placeholder-val="{{ false }}">
 <a href="#" onClick="{{ r.onVoid }}" style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap">Void</a>
 </sc-if>
+</div>
 </td>
 </tr>
 </sc-for>
@@ -230,7 +235,10 @@ a:hover{color:var(--color-accent-700)}
 <th style="text-align:right">Grade</th></tr></thead>
 <tbody>
 <sc-for list="{{ heatRows }}" as="h" hint-placeholder-count="14">
-<tr><td style="font-weight:600;white-space:nowrap">{{ h.branch }}</td>
+<tr><td style="font-weight:600;white-space:nowrap">
+<sc-if value="{{ h.hasReport }}" hint-placeholder-val="{{ false }}"><a href="{{ h.reportHref }}" target="_blank" title="Open this store's audit report">{{ h.branch }} ↗</a></sc-if>
+<sc-if value="{{ h.noReport }}" hint-placeholder-val="{{ true }}">{{ h.branch }}</sc-if>
+</td>
 <sc-for list="{{ h.cells }}" as="cell" hint-placeholder-count="9">
 <td style="{{ cell.style }}">{{ cell.label }}</td>
 </sc-for>
@@ -368,11 +376,17 @@ class Component extends DCLogic {
     const H = this.state.H;
     if(!H) return {};
     const {CATS, WEEKS, RECORDS} = H;
-    const brand = H.BRANDS[this.state.brand] ? this.state.brand : "tenya";
+    /* Area managers are pinned to the brand + area on their profile; the VP
+       and QSCV team move freely. Missing brand/area on an area profile falls
+       back to the whole brand rather than showing nothing. */
+    const P = this.state.cProfile || {};
+    const lockBrand = P.role === "area" && H.BRANDS[P.brand] ? P.brand : null;
+    const brand = lockBrand || (H.BRANDS[this.state.brand] ? this.state.brand : "tenya");
     const BR = H.BRANDS[brand];
+    const lockArea = P.role === "area" && BR.areas.indexOf(P.area) >= 0 ? P.area : null;
     const BRANCHES = BR.branches;
     const inBrand = r => (r.brand || "racks") === brand;
-    const area = BR.areas.indexOf(this.state.area) >= 0 ? this.state.area : "All";
+    const area = lockArea || (BR.areas.indexOf(this.state.area) >= 0 ? this.state.area : "All");
     const C = this.state.cloud;
     /* Stores that were renamed keep their old name on audits already signed off,
        which would otherwise split one store into two league rows. */
@@ -506,6 +520,8 @@ class Component extends DCLogic {
         crit: r.cur.crit,
         critStyle: "text-align:right;font-weight:600;color:"+(r.cur.crit>=5?"var(--color-bg);background:var(--color-accent-900)":"var(--color-neutral-700)"),
         voidable: !!(C && C.isManager && C.isManager() && r.cur.id),
+        hasReport: !!(r.cur.id && r.cur.report),
+        reportHref: r.cur.id ? "./QSCV Audit Report.dc.html?audit="+encodeURIComponent(r.cur.id)+"&brand="+brand : "#",
         onVoid: e2=>{ e2.preventDefault(); this.setState({voidTarget:{id:r.cur.id, branch:r.b.name, date:r.cur.date}, voidReason:""}); }
       };
     });
@@ -534,6 +550,9 @@ class Component extends DCLogic {
 
     const heatRows = scored.slice().sort((x,y)=>y.cur.score-x.cur.score).map(r=>({
       branch:r.b.name, score:r.cur.score.toFixed(1),
+      hasReport: !!(r.cur.id && r.cur.report),
+      noReport: !(r.cur.id && r.cur.report),
+      reportHref: r.cur.id ? "./QSCV Audit Report.dc.html?audit="+encodeURIComponent(r.cur.id)+"&brand="+brand : "#",
       cells: CATS.map(c=>{
         const v = r.cur.cats[c.num];
         return {label: v==null?"—":Math.round(v*100), style:this.heatStyle(v==null?1:v)};
@@ -553,7 +572,7 @@ class Component extends DCLogic {
       hasBranchHist: monthCols.length > 0,
       brandLabel: BR.label,
       brandClass: "brand-" + brand,
-      brandBtns: Object.keys(H.BRANDS).map(k=>({
+      brandBtns: Object.keys(H.BRANDS).filter(k=>!lockBrand || k===lockBrand).map(k=>({
         label: H.BRANDS[k].label,
         style: "font-size:12px;padding:6px 14px;min-height:32px;cursor:pointer;border-radius:0;border:1px solid "
           + (k===brand ? "var(--color-text)" : "var(--color-divider)")
@@ -562,7 +581,7 @@ class Component extends DCLogic {
           + ";font-family:var(--font-body);letter-spacing:.06em;text-transform:uppercase;font-weight:600;white-space:nowrap",
         onPick: ()=>{ try{ localStorage.setItem(H.BRAND_KEY, k); }catch(e){} this.setState({brand:k, area:"All", cycle:0}); }
       })),
-      areaBtns: ["All"].concat(BR.areas).map(k=>({
+      areaBtns: (lockArea ? [lockArea] : ["All"].concat(BR.areas)).map(k=>({
         label: k,
         style: "font-size:12px;padding:6px 14px;min-height:32px;cursor:pointer;border-radius:0;border:1px solid "
           + (k===area ? "var(--color-accent)" : "var(--color-divider)")
@@ -624,7 +643,7 @@ class Component extends DCLogic {
       signedIn: !!this.state.cUser,
       signedOut: !this.state.cUser,
       authName: (this.state.cProfile && this.state.cProfile.name) || (this.state.cUser ? this.state.cUser.email : ""),
-      authRole: (this.state.cProfile && this.state.cProfile.role === "manager") ? "Manager" : "Auditor",
+      authRole: (this.state.cloud && this.state.cloud.roleLabel && this.state.cProfile) ? this.state.cloud.roleLabel() : "Auditor",
       roleDebug: (()=>{
         const p = this.state.cProfile;
         if(!p || p.role === "manager") return "";
@@ -635,7 +654,7 @@ class Component extends DCLogic {
           : "Creating your profile document now — refresh in a moment, then set its role to manager in the Firebase console.";
         return "users/"+(p._uid||"?")+" found, but role is \""+(p.role||"unset")+"\" — it must be exactly manager.";
       })(),
-      hasRoleDebug: !!(this.state.cProfile && this.state.cProfile.role !== "manager" && this.state.cUser),
+      hasRoleDebug: !!(this.state.cProfile && ["manager","vp","area"].indexOf(this.state.cProfile.role) < 0 && this.state.cUser),
       email: this.state.email || "", pw: this.state.pw || "",
       setEmail: e2=>this.setState({email:e2.target.value}),
       setPw: e2=>this.setState({pw:e2.target.value}),

@@ -410,6 +410,7 @@ export const CATALOGS = {
 export const BRAND_KEY = "qscv-audit-brand-v1";
 
 function activeBrand(){
+  try{ const q = new URLSearchParams(location.search).get("brand"); if(q && CATALOGS[q]) return q; }catch(e){}
   try{ const b = localStorage.getItem(BRAND_KEY); if(b && CATALOGS[b]) return b; }catch(e){}
   return "tenya";
 }

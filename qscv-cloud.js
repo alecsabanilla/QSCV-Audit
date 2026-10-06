@@ -69,6 +69,28 @@ export const getBranches= () => branches;
    built-in list otherwise. */
 export const getBranchesFor = brand => byBrand[brand] ? byBrand[brand].slice() : [];
 export const isManager  = () => !!profile && profile.role === "manager";
+/* Roles: auditor (field), manager (QSCV team, can void), vp (VP Operations,
+   read-only, every brand), area (area manager, read-only, one brand + area).
+   Set in the Firebase console on users/{uid}: role, and for area also brand + area. */
+export const ROLE_LABEL = {auditor:"Auditor", manager:"QSCV Manager", vp:"VP Operations", area:"Area Manager"};
+export const roleOf     = () => (profile && ROLE_LABEL[profile.role]) ? profile.role : "auditor";
+export const isViewer   = () => roleOf() === "vp" || roleOf() === "area";
+export const roleLabel  = () => ROLE_LABEL[roleOf()];
+
+export async function getAudit(id){
+  await init();
+  if(!user) throw new Error("signed-out");
+  const snap = await M.getDoc(M.doc(db, "audits", id));
+  if(!snap.exists()) throw new Error("not-found");
+  return Object.assign({id: snap.id}, snap.data());
+}
+/* Evidence links written back onto the audit so a viewer's report can show
+   the photos without the auditor's phone. */
+export async function attachEvidence(auditId, map){
+  await init();
+  if(!user || !auditId) return;
+  await M.setDoc(M.doc(db, "audits", auditId), {evidence: map, updatedAt: Date.now()}, {merge:true});
+}
 
 export function onAuth(cb){ subs.auth.add(cb); cb({user, profile}); return () => subs.auth.delete(cb); }
 export function onAudits(cb){ subs.audits.add(cb); cb(audits); return () => subs.audits.delete(cb); }
@@ -274,6 +296,7 @@ const slug = s => String(s||"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace
 export async function saveAudit(rec){
   await init();
   if(!user) throw new Error("Sign in before signing off an audit.");
+  if(isViewer()) throw new Error("View-only accounts can't sign off audits.");
   const id = [rec.date, slug(rec.branch), user.uid.slice(0,6)].join("_");
   const doc = Object.assign({}, rec, {
     auditorUid: user.uid,

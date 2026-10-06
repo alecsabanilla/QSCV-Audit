@@ -116,10 +116,13 @@ export async function sendReport(rec, findings, opts){
       if(!blob) continue;
       const path = "evidence/" + auditId + "/" + s.f.key.replace(/[^A-Za-z0-9_-]+/g,"_") + "-" + s.i + ".jpg";
       const link = await C.uploadEvidence(path, blob);
-      uploaded.push({link, cat:s.f.cat, item:s.f.item, severity:s.f.severity});
+      uploaded.push({link, key:s.f.key, cat:s.f.cat, item:s.f.item, severity:s.f.severity});
     }catch(e){ /* one bad photo must not block the report */ }
   }
   if(o.onProgress) o.onProgress(shots.length, shots.length);
+  const evMap = {};
+  uploaded.forEach(u => { (evMap[u.key] = evMap[u.key] || []).push(u.link); });
+  if(uploaded.length) C.attachEvidence(auditId, evMap).catch(()=>{});
 
   const html = buildHtml(rec, uploaded, route);
   await C.queueMail({

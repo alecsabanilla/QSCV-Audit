@@ -32,6 +32,9 @@ doc-page:not(:defined){visibility:hidden}
 <doc-page margin="0.6in">
 
 <div class="{{ brandClass }}" style="font-family:var(--font-body);color:var(--color-text)">
+<sc-if value="{{ hasRemoteMsg }}" hint-placeholder-val="{{ false }}">
+<div style="font-size:10pt;line-height:1.5;padding:8px 10px;margin-bottom:16px;border:1px solid var(--color-accent-900);color:var(--color-accent-900)">{{ remoteMsg }}</div>
+</sc-if>
 
 <div style="display:flex;justify-content:space-between;align-items:baseline;font:600 8pt/1.4 var(--font-body);letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700);border-bottom:1px solid var(--color-divider);padding-bottom:6px;margin-bottom:22px">
 <span>Cavallino · QSCV Audit Report</span><span>{{ branch }}</span>
@@ -216,6 +219,11 @@ doc-page:not(:defined){visibility:hidden}
 class Component extends DCLogic {
   state = {data:null, draft:null};
   componentDidMount(){
+    /* ?audit=<id> opens a signed audit from the cloud — how area managers and
+       the VP read reports without the auditor's phone. */
+    let remote = null;
+    try{ remote = new URLSearchParams(location.search).get("audit"); }catch(e){}
+    if(remote){ this.loadRemote(remote); return; }
     import("./qscv-data.js").then(D=>{
       let draft = null;
       try{ const raw = localStorage.getItem(D.KEY); if(raw) draft = JSON.parse(raw); }catch(e){}
@@ -226,6 +234,26 @@ class Component extends DCLogic {
       import("./qscv-photos.js").then(P=>P.loadAll(D.BRAND)))
       .then(shots=>this.setState({shots}))
       .catch(()=>{});
+  }
+  loadRemote(id){
+    this.setState({remoteMsg:"Loading audit…"});
+    Promise.all([import("./qscv-data.js"), import("./qscv-cloud.js")]).then(([D, C])=>{
+      let done = false;
+      const off = C.onAuth(a=>{
+        if(done) return;
+        if(!a.user){
+          C.init().then(()=>{ if(!C.getUser() && !done) this.setState({remoteMsg:"Sign in on the dashboard first, then reopen this report."}); });
+          return;
+        }
+        done = true;
+        setTimeout(()=>off && off(), 0);
+        C.getAudit(id).then(doc=>{
+          if(!doc.report) return this.setState({remoteMsg:"This audit was signed off before full reports were stored in the cloud — only its scores are on the dashboard. The auditor's phone still has the full report."});
+          const draft = Object.assign({}, doc.report, {meta:Object.assign({auditor:doc.auditor, branch:doc.branch, date:doc.date}, doc.report.meta||{})});
+          this.setState({data:D, draft, shots:doc.evidence||{}, remoteMsg: doc.voided ? "Voided audit — "+(doc.voidReason||"no reason given") : ""});
+        }).catch(err=>this.setState({remoteMsg: err && err.message==="not-found" ? "Audit not found." : "Couldn't load this audit ("+((err&&err.code)||(err&&err.message)||"error")+")."}));
+      });
+    });
   }
   measurePoints(m, samples){
     const s = samples||[];
@@ -240,7 +268,8 @@ class Component extends DCLogic {
   }
   renderVals(){
     const D = this.state.data, draft = this.state.draft;
-    if(!D || !draft) return {};
+    const remoteMsg = this.state.remoteMsg || "";
+    if(!D || !draft) return {remoteMsg, hasRemoteMsg: !!remoteMsg};
     const {CATS, MEASURES, PTS, CRIT, SEV, SEVPTS} = D;
     const brandClass = "brand-" + (D.BRAND || "tenya");
     const scores = draft.scores||{}, ev = draft.ev||{}, speed = draft.speed||{}, meta = draft.meta||{}, signed = draft.signed||{};
@@ -347,6 +376,7 @@ class Component extends DCLogic {
 
     const now = new Date();
     return {
+      remoteMsg, hasRemoteMsg: !!remoteMsg,
       capaGroups,
       hasCapa: capaGroups.length>0,
       capaCount: capaN,

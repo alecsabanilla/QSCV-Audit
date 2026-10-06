@@ -143,6 +143,9 @@ a:hover{color:var(--color-accent-700)}
 <div style="min-width:0">
 <div style="font:600 14px/1.2 var(--font-heading)">{{ authName }}</div>
 <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-neutral-600);margin-top:3px">{{ authRole }} · {{ cloudLabel }}</div>
+<sc-if value="{{ isViewer }}" hint-placeholder-val="{{ false }}">
+<div style="font-size:12px;line-height:1.5;margin-top:6px;color:var(--color-accent-900)">View-only account — audits signed here won't sync. <a href="./QSCV Dashboard.dc.html">Open the dashboard</a> to see scores and reports.</div>
+</sc-if>
 </div>
 <button class="btn btn-secondary" style="min-height:44px;padding:0 14px;flex:none" onClick="{{ onSignOut }}">Sign out</button>
 </div>
@@ -1147,7 +1150,13 @@ class Component extends DCLogic {
     }catch(e){}
     const C = this.state.cloud;
     if(C && this.state.cUser){
-      C.saveAudit(rec)
+      /* The full answer sheet rides along on the cloud copy only, so area
+         managers and the VP can open the complete report from the dashboard.
+         Photos are excluded — they reach Storage when the report is sent. */
+      const evLight = {};
+      Object.keys(s.ev||{}).forEach(k=>{ const v=s.ev[k]; evLight[k]={photos:v.photos||0,note:v.note||"",capa:v.capa||"",repeat:!!v.repeat}; });
+      const report = {meta:s.meta, scores:s.scores, ev:evLight, speed:s.speed, signed:s.signed, daypart:s.daypart||null};
+      C.saveAudit(Object.assign({}, rec, {report}))
         .then(()=>this.flash("Signed off and synced to the QSCV portfolio"))
         .catch(()=>this.flash("Saved on this phone — will sync when signed in and online"));
     }else{
@@ -1883,7 +1892,8 @@ class Component extends DCLogic {
       signedOut: !s.cUser,
       authEmail: s.cUser ? s.cUser.email : "",
       authName: (s.cProfile && s.cProfile.name) || (s.cUser ? s.cUser.email : ""),
-      authRole: (s.cProfile && s.cProfile.role === "manager") ? "Manager" : "Auditor",
+      authRole: (s.cloud && s.cloud.roleLabel && s.cProfile) ? s.cloud.roleLabel() : "Auditor",
+      isViewer: !!(s.cloud && s.cloud.isViewer && s.cProfile && s.cloud.isViewer()),
       email: s.email || "", pw: s.pw || "",
       setEmail: e2=>this.setState({email:e2.target.value}),
       setPw: e2=>this.setState({pw:e2.target.value}),
