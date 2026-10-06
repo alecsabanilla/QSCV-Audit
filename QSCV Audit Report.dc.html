@@ -40,6 +40,7 @@ doc-page:not(:defined){visibility:hidden}
 <span>Cavallino · QSCV Audit Report</span><span>{{ branch }}</span>
 </div>
 
+<sc-if value="{{ isFull }}" hint-placeholder-val="{{ true }}">
 <div style="font:600 8.5pt/1 var(--font-body);letter-spacing:.14em;text-transform:uppercase;color:var(--color-accent-700)">Quality · Service · Cleanliness · Value</div>
 <h1 style="font-size:30pt;line-height:1.02;margin:6px 0 14px">QSCV Audit Report</h1>
 
@@ -210,6 +211,40 @@ doc-page:not(:defined){visibility:hidden}
 </div>
 </sc-if>
 
+</sc-if>
+
+<sc-if value="{{ isSummary }}" hint-placeholder-val="{{ false }}">
+<sc-if value="{{ isFull }}" hint-placeholder-val="{{ true }}">
+<div style="font:600 8.5pt/1 var(--font-body);letter-spacing:.14em;text-transform:uppercase;color:var(--color-accent-700)">Quality · Service · Cleanliness · Value</div>
+<h1 style="font-size:30pt;line-height:1.02;margin:6px 0 14px">QSCV Score Summary</h1>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:0 24px;border-top:1px solid var(--color-text);border-bottom:1px solid var(--color-text);padding:10px 0;margin-bottom:18px;font-size:9.5pt">
+<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--color-divider)"><b style="font-weight:600">Branch</b><span>{{ branch }}</span></div>
+<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--color-divider)"><b style="font-weight:600">Store type</b><span>{{ stype }}</span></div>
+<div style="display:flex;justify-content:space-between;padding:3px 0"><b style="font-weight:600">Date</b><span>{{ date }}</span></div>
+<div style="display:flex;justify-content:space-between;padding:3px 0"><b style="font-weight:600">Auditor</b><span>{{ auditor }}</span></div>
+</div>
+<div class="blueprint" style="padding:16px;display:flex;align-items:center;gap:22px;break-inside:avoid;margin-bottom:14px">
+<i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+<div>
+<div style="font:600 8pt/1 var(--font-body);letter-spacing:.12em;text-transform:uppercase;color:var(--color-accent-700)">Overall score</div>
+<div style="font:600 46pt/1 var(--font-heading);margin-top:4px">{{ scoreLabel }}</div>
+</div>
+<div style="flex:1;border-left:1px solid var(--color-divider);padding-left:22px">
+<div style="font:600 15pt/1.2 var(--font-heading)">{{ gradeBand }}</div>
+<div style="font-size:9pt;line-height:1.5;color:var(--color-neutral-700);margin-top:4px">{{ devLine }}</div>
+<div style="font-size:8.5pt;line-height:1.5;color:var(--color-neutral-600);margin-top:6px">Bands · 91–100 Excellent · 86–90 Very Good · 80–85 Good · 79 and below Unsatisfactory</div>
+</div>
+</div>
+<h2 style="font-size:15pt;margin:18px 0 6px">Category scores</h2>
+<table style="width:100%;border-collapse:collapse;font-size:9.5pt">
+<thead><tr style="border-bottom:1px solid var(--color-text);font:600 7.5pt/1 var(--font-body);letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700)"><th style="text-align:left;padding:6px">#</th><th style="text-align:left;padding:6px">Category</th><th style="text-align:right;padding:6px">Weight</th><th style="text-align:right;padding:6px">Score</th></tr></thead>
+<tbody>
+<sc-for list="{{ sumRows }}" as="c" hint-placeholder-count="8">
+<tr style="border-bottom:1px solid var(--color-divider)"><td style="padding:5px 6px">{{ c.num }}</td><td style="padding:5px 6px">{{ c.name }}</td><td style="padding:5px 6px;text-align:right">{{ c.weight }}</td><td style="padding:5px 6px;text-align:right;font-weight:600;font-variant-numeric:tabular-nums">{{ c.pct }}</td></tr>
+</sc-for>
+</tbody>
+</table>
+</sc-if>
 <div style="font-size:8.5pt;line-height:1.5;color:var(--color-neutral-600);margin-top:10px;padding-top:10px;border-top:1px solid var(--color-divider)">QSCV Department · confidential · generated {{ generated }}. Signatures were captured on the auditing device. Deviations marked High risk become Critical CAPA tasks due within 24 hours; Major within 7 days; Minor at the next audit cycle.</div>
 
 </div>
@@ -248,7 +283,7 @@ class Component extends DCLogic {
         done = true;
         setTimeout(()=>off && off(), 0);
         C.getAudit(id).then(doc=>{
-          if(!doc.report) return this.setState({remoteMsg:"This audit was signed off before full reports were stored in the cloud — only its scores are on the dashboard. The auditor's phone still has the full report."});
+          if(!doc.report) return this.setState({data:D, summary:doc, remoteMsg:"This audit was signed off before full reports were stored in the cloud, so only its scores are shown. Item-level findings, photos and the CAPA plan are on the auditor's phone. Audits signed off from now on open the complete report."});
           const draft = Object.assign({}, doc.report, {meta:Object.assign({auditor:doc.auditor, branch:doc.branch, date:doc.date}, doc.report.meta||{})});
           this.setState({data:D, draft, shots:doc.evidence||{}, remoteMsg: doc.voided ? "Voided audit — "+(doc.voidReason||"no reason given") : ""});
         }).catch(err=>this.setState({remoteMsg: err && err.message==="not-found" ? "Audit not found." : "Couldn't load this audit ("+((err&&err.code)||(err&&err.message)||"error")+")."}));
@@ -269,7 +304,22 @@ class Component extends DCLogic {
   renderVals(){
     const D = this.state.data, draft = this.state.draft;
     const remoteMsg = this.state.remoteMsg || "";
-    if(!D || !draft) return {remoteMsg, hasRemoteMsg: !!remoteMsg};
+    const S = this.state.summary;
+    if(D && S){
+      const dv = S.dev || {};
+      const nDev = (dv.H||0)+(dv.M||0)+(dv.L||0);
+      return {
+        remoteMsg, hasRemoteMsg: !!remoteMsg, isFull:false, isSummary:true,
+        brandClass: "brand-" + (D.BRAND || "tenya"),
+        branch: S.branch||"", stype: S.stype||"", date: S.date||"", auditor: S.auditor||"",
+        scoreLabel: S.score!=null ? Number(S.score).toFixed(1) : "—",
+        gradeBand: S.grade || "",
+        devLine: nDev ? nDev+" deviations · "+(dv.H||0)+" high · "+(dv.M||0)+" medium · "+(dv.L||0)+" low"+(S.crit ? " · "+S.crit+" critical fails" : "") : "No deviation counts recorded.",
+        sumRows: D.CATS.map(c=>{ const v = (S.cats||{})[c.num]; return {num:c.num, name:c.name, weight:c.weight+"%", pct: v==null ? "—" : Math.round(v*100)+"%"}; }),
+        generated: new Date().toLocaleString()
+      };
+    }
+    if(!D || !draft) return {remoteMsg, hasRemoteMsg: !!remoteMsg, isFull:false, isSummary:false};
     const {CATS, MEASURES, PTS, CRIT, SEV, SEVPTS} = D;
     const brandClass = "brand-" + (D.BRAND || "tenya");
     const scores = draft.scores||{}, ev = draft.ev||{}, speed = draft.speed||{}, meta = draft.meta||{}, signed = draft.signed||{};
@@ -376,7 +426,7 @@ class Component extends DCLogic {
 
     const now = new Date();
     return {
-      remoteMsg, hasRemoteMsg: !!remoteMsg,
+      remoteMsg, hasRemoteMsg: !!remoteMsg, isFull:true, isSummary:false,
       capaGroups,
       hasCapa: capaGroups.length>0,
       capaCount: capaN,
